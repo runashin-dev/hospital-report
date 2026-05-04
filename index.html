@@ -30,7 +30,7 @@
 .tg input:checked+.tk{background:#6366f1}.tg input:checked+.tk::after{transform:translateX(15px)}
 .dv{width:1px;height:18px;background:#e5e7eb;margin:0 1px}
 .tabs{display:flex;gap:2px;margin-bottom:14px}.tb{padding:7px 16px;border-radius:9px;border:1px solid #e5e7eb;cursor:pointer;font-size:11px;font-weight:600;font-family:'Noto Sans KR';background:#fff;color:#6b7280}.tb.a{background:#6366f1;color:#fff;border-color:#6366f1}
-.grid{display:grid;gap:10px;margin-bottom:14px}.g5{grid-template-columns:repeat(5,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:1fr 1fr}
+.grid{display:grid;gap:10px;margin-bottom:14px}.grid>*{min-width:0;overflow-x:auto}.g5{grid-template-columns:repeat(5,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:1fr 1fr}
 .card{background:#fff;border:1px solid #e5e7eb;border-radius:11px;padding:14px}.card .kl{font-size:10px;color:#6b7280;margin-bottom:3px}.card .kv{font-size:20px;font-weight:800;letter-spacing:-1px;font-family:'JetBrains Mono',monospace}.card .kf{display:flex;align-items:center;gap:3px;margin-top:2px;font-size:9px;color:#9ca3af}
 .B{display:inline-flex;align-items:center;gap:2px;padding:1px 5px;border-radius:10px;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace}.B.u{background:#ecfdf5;color:#059669}.B.d{background:#fef2f2;color:#dc2626}.B.f{background:#fffbeb;color:#d97706}
 .CH{position:relative;width:100%;height:200px}
@@ -47,7 +47,7 @@
 .mom{background:#fff;border:1px solid #e5e7eb;border-radius:11px;padding:14px;margin-bottom:8px}.mom h4{font-size:12px;font-weight:700;margin-bottom:6px}
 table.MT{width:100%;border-collapse:collapse}.MT th{padding:5px 8px;font-size:9px;font-weight:600;color:#9ca3af;text-align:center;border-bottom:1px solid #f3f4f6}.MT th:first-child{text-align:left}
 .MT td{padding:7px 8px;font-size:11px;text-align:center;font-family:'JetBrains Mono',monospace;color:#374151;border-bottom:1px solid #fafafa}.MT td:first-child{text-align:left;font-family:'Noto Sans KR';font-weight:600;color:#111827;font-size:11px}.MT td.hl{background:#eef2ff;color:#4338ca;font-weight:700}
-.DP{background:#f9fafb;border:1px solid #e5e7eb;border-radius:9px;padding:14px;margin-top:8px}
+.DP{background:#f9fafb;border:1px solid #e5e7eb;border-radius:9px;padding:14px;margin-top:8px;overflow:hidden}
 .IB{padding:7px 10px;background:#eef2ff;border-radius:7px;border-left:3px solid #6366f1;font-size:11px;font-weight:500;line-height:1.5;margin-top:8px}
 .st2{font-size:14px;font-weight:700;margin:18px 0 6px}.sub2{font-size:10px;color:#9ca3af;margin-bottom:8px}
 .footer{margin-top:28px;padding:10px 0;border-top:1px solid #e5e7eb;text-align:center}.footer p{font-size:9px;color:#9ca3af}
@@ -206,8 +206,10 @@ function findTagKw(evName){
 }
 function mkSVG(kw){
   try{if(!D||!D.tag)return"";const tr=D.tag[kw];if(!tr)return"";
-  const ks=Object.keys(tr).sort().slice(-4);if(ks.length<2)return"";
-  const vs=ks.map(k=>{let v=tr[k];if(S.proj&&k===S.lm&&isP(k,S.mktE))v=prj(v,S.mktE,k);return v;});
+  // Only use months up to and including the base month (S.lm)
+  const ks=Object.keys(tr).sort().filter(k=>k<=S.lm).slice(-4);if(ks.length<2)return"";
+  const lastDataMonth=D.months[D.months.length-1];
+  const vs=ks.map(k=>{let v=tr[k];if(S.proj&&k===lastDataMonth&&isP(k,S.mktE))v=prj(v,S.mktE,k);return v;});
   const g=vs[vs.length-2]>0?(vs[vs.length-1]-vs[vs.length-2])/vs[vs.length-2]*100:0;
   const mx=Math.max(...vs),mn=Math.min(...vs),r=mx-mn||1,col=g>=0?"#059669":"#dc2626";
   const pts=vs.map((v,i)=>(i/(vs.length-1))*40+","+(14-((v-mn)/r)*12)).join(" ");
@@ -220,15 +222,14 @@ let D=null,savedList=[],isDirty=false;
 function autoElapsed(){const d=new Date();return d.getDate();}
 let S={scr:"home",tab:"overview",co:"ALL",sort:"db",exp:new Set(),proj:true,cpvE:autoElapsed(),mktE:autoElapsed(),ch:{},hn:"",statusMsg:"",statusType:"",files:{cpv:null,cpc:null,tag:null},showTr:false,showComments:true,momDetail:new Set(),momMonths:3,opFilter:"ALL",baseMo:null};
 function init(){if(!D)return;
-  // If baseMo is set, slice months up to and including baseMo
   const allMs=D.months;
-  if(S.baseMo&&allMs.includes(S.baseMo)){
-    const idx=allMs.indexOf(S.baseMo);
-    S.ms=allMs.slice(0,idx+1);
-  } else {
-    S.ms=allMs;S.baseMo=allMs[allMs.length-1];
-  }
-  S.lm=S.ms[S.ms.length-1];S.L=S.ms.length-1;S.P=S.ms.length-2;
+  // baseMo = analysis target month. Only show data up to this month.
+  if(!S.baseMo||!allMs.includes(S.baseMo))S.baseMo=allMs[allMs.length-1];
+  const bi=allMs.indexOf(S.baseMo);
+  S.ms=allMs.slice(0,bi+1);
+  S.lm=S.baseMo;S.L=S.ms.length-1;S.P=S.ms.length-2;
+  // Projection applies only to baseMo if it's the actual last data month
+  S.projMonth=allMs[allMs.length-1];
   D.events.forEach(ev=>{ev.l=dlang(ev.n);});
 }
 const isP=(m,el)=>m===S.lm&&el<dim(m);
@@ -382,15 +383,17 @@ function rDash(){
 
       // ===== EXPANDED DETAIL =====
       if(S.exp.has(eid)){
-        h+=`<div class="DP"><div style="margin-bottom:8px">
-        <div><div style="font-size:10px;color:#6b7280;font-weight:600;margin-bottom:4px">월별 상세</div>
+        h+=`<div class="DP"><div class="grid g2" style="margin-bottom:8px">
+        <div><div style="font-size:10px;color:#6b7280;font-weight:600;margin-bottom:4px">DB & DB당비용 추이</div><div style="height:140px"><canvas id="dc_${ei}"></canvas></div></div>
+        <div><div style="font-size:10px;color:#6b7280;font-weight:600;margin-bottom:4px">월별 상세</div><div style="overflow-x:auto">
         <table class="MT"><thead><tr><th>월</th><th>조회수</th><th>DB</th><th>전환율</th><th>비용</th></tr></thead><tbody>`;
         ms.forEach(m=>{const t=evT(ev,m);const isL=m===lm;h+=`<tr><td${isL?' class="hl"':""}>${fM(m)}</td><td${isL?' class="hl"':""}>${fN(t.v)}</td><td${isL?' class="hl"':""}>${fN(t.d)}${t.cpcD>0?` <span style="font-size:9px;color:#6366f1">(CPC ${t.cpcD})</span>`:""}</td><td${isL?' class="hl"':""}>${fP(t.r)}</td><td${isL?' class="hl"':""}>₩${fN(t.c)}</td></tr>`;});
-        h+=`</tbody></table></div></div>`;
+        h+=`</tbody></table></div></div></div>`;
         // Insight
         if(kw&&D.tag&&D.tag[kw]){
-          const tr=D.tag[kw],ks=Object.keys(tr).sort().slice(-2);
-          const vs=ks.map(k=>{let v=tr[k];if(S.proj&&k===lm&&isP(k,S.mktE))v=prj(v,S.mktE,k);return v;});
+          const tr=D.tag[kw],ks=Object.keys(tr).sort().filter(k=>k<=S.lm).slice(-2);
+          const lastDM=D.months[D.months.length-1];
+          const vs=ks.map(k=>{let v=tr[k];if(S.proj&&k===lastDM&&isP(k,S.mktE))v=prj(v,S.mktE,k);return v;});
           const g=vs[0]>0?(vs[1]-vs[0])/vs[0]*100:0;const evG=ev.dG||0;
           let ins,ic;
           if(g>0&&evG>0){ins="시장과 함께 성장 중!";ic="#059669";}
@@ -417,7 +420,10 @@ function rDash(){
 
   // ===== MOM TAB =====
   if(S.tab==="mom"){
-    const momMs=ms.slice(-S.momMonths);const mL=momMs.length-1,mP=momMs.length-2;
+    // Slice months: up to baseMo, then take last N
+    const msUpToBase=ms.filter(m=>m<=S.lm);
+    const momMs=msUpToBase.slice(-S.momMonths);
+    const hlIdx=momMs.indexOf(S.lm);const mL=hlIdx>=0?hlIdx:momMs.length-1;const mP=mL-1;
     const tots=momMs.map(m=>mTot(m,co));
     const cpvTots=momMs.map(m=>cpvMTot(m,co));
     const cpcTots=momMs.map(cpcMT);
@@ -612,22 +618,27 @@ function addTagFile(inp){
   fr.readAsArrayBuffer(inp.files[0]);
 }
 function exportPDF(){
-  // Show modal to select which tabs to print
-  const modal=document.createElement('div');
-  modal.id='pdfModal';
+  // Build event list for selection
+  const evsByDB=[...D.events].map(e=>({n:e.n,l:e.l,d:evT(e,S.lm).d})).filter(e=>e.d>0).sort((a,b)=>b.d-a.d);
+  let evOpts=evsByDB.slice(0,15).map((e,i)=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;border-bottom:1px solid #f9fafb"><input type="checkbox" name="sumEv" value="${i}" ${i<2?"checked":""} style="width:14px;height:14px;accent-color:#6366f1"><span style="font-size:11px"><span class="fl fl-${e.l}" style="font-size:7px">${FL[e.l]||""}</span>${esc(e.n.slice(0,35))} <span style="color:#9ca3af;font-size:9px">(${fN(e.d)} DB)</span></span></label>`).join("");
+  const modal=document.createElement('div');modal.id='pdfModal';
   modal.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)this.remove()">
-  <div style="background:#fff;border-radius:16px;padding:24px 28px;width:340px;box-shadow:0 20px 60px rgba(0,0,0,.15)">
-    <div style="font-size:16px;font-weight:800;margin-bottom:4px">📄 PDF 저장</div>
-    <div style="font-size:11px;color:#9ca3af;margin-bottom:16px">저장할 화면을 선택하세요 (복수 선택 가능)</div>
-    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f9fafb;border-radius:8px;margin-bottom:6px;cursor:pointer;border:1px solid #e5e7eb">
-      <input type="checkbox" value="overview" checked style="width:16px;height:16px;accent-color:#6366f1"> <span style="font-size:13px;font-weight:600">종합 대시보드</span></label>
-    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f9fafb;border-radius:8px;margin-bottom:6px;cursor:pointer;border:1px solid #e5e7eb">
-      <input type="checkbox" value="events" checked style="width:16px;height:16px;accent-color:#6366f1"> <span style="font-size:13px;font-weight:600">이벤트별 성과</span></label>
-    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f9fafb;border-radius:8px;margin-bottom:6px;cursor:pointer;border:1px solid #e5e7eb">
-      <input type="checkbox" value="cpc" style="width:16px;height:16px;accent-color:#6366f1"> <span style="font-size:13px;font-weight:600">CPC 검색광고</span></label>
-    <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f9fafb;border-radius:8px;margin-bottom:12px;cursor:pointer;border:1px solid #e5e7eb">
-      <input type="checkbox" value="mom" style="width:16px;height:16px;accent-color:#6366f1"> <span style="font-size:13px;font-weight:600">MOM 변화</span></label>
-    <div style="display:flex;gap:8px">
+  <div style="background:#fff;border-radius:16px;padding:24px 28px;width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15)">
+    <div style="font-size:16px;font-weight:800;margin-bottom:12px">📄 PDF 저장</div>
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button onclick="document.getElementById('pdfMode').value='summary';document.getElementById('summaryOpts').style.display='block';document.getElementById('fullOpts').style.display='none';this.style.background='#6366f1';this.style.color='#fff';this.nextElementSibling.style.background='#f9fafb';this.nextElementSibling.style.color='#6b7280'" style="flex:1;padding:8px;border-radius:8px;border:1px solid #6366f1;background:#6366f1;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR'">📋 한판요약</button>
+      <button onclick="document.getElementById('pdfMode').value='full';document.getElementById('summaryOpts').style.display='none';document.getElementById('fullOpts').style.display='block';this.style.background='#6366f1';this.style.color='#fff';this.previousElementSibling.style.background='#f9fafb';this.previousElementSibling.style.color='#6b7280'" style="flex:1;padding:8px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;color:#6b7280;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR'">📊 전체 리포트</button>
+    </div>
+    <input type="hidden" id="pdfMode" value="summary">
+    <div id="summaryOpts">
+      <div style="font-size:11px;color:#6b7280;margin-bottom:8px;font-weight:600">메인 이벤트 선택 (1~2개 권장)</div>
+      <div style="max-height:250px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px">${evOpts}</div>
+    </div>
+    <div id="fullOpts" style="display:none">
+      <div style="font-size:11px;color:#9ca3af;margin-bottom:8px">포함할 탭 선택</div>
+      ${["overview:종합 대시보드","events:이벤트별 성과","cpc:CPC 검색광고","mom:MOM 변화"].map(s=>{const[k,l]=s.split(":");return`<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f9fafb;border-radius:8px;margin-bottom:6px;cursor:pointer;border:1px solid #e5e7eb"><input type="checkbox" name="fullTab" value="${k}" ${k==="overview"||k==="events"?"checked":""} style="width:16px;height:16px;accent-color:#6366f1"><span style="font-size:13px;font-weight:600">${l}</span></label>`;}).join("")}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
       <button onclick="doPDFExport()" style="flex:1;padding:10px;border-radius:10px;border:none;background:#6366f1;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR'">PDF 생성</button>
       <button onclick="document.getElementById('pdfModal').remove()" style="padding:10px 16px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:13px;cursor:pointer;font-family:'Noto Sans KR'">취소</button>
     </div>
@@ -635,55 +646,108 @@ function exportPDF(){
   document.body.appendChild(modal);
 }
 function doPDFExport(){
-  const checks=document.querySelectorAll('#pdfModal input[type=checkbox]:checked');
-  const tabs=[...checks].map(c=>c.value);
+  const mode=document.getElementById('pdfMode').value;
   document.getElementById('pdfModal').remove();
-  if(!tabs.length)return;
-  // Save current state
+  if(mode==='summary') return doSummaryPDF();
+  // Full export (existing logic)
+  const checks=document.querySelectorAll('input[name=fullTab]:checked');
+  const tabs=[...checks].map(c=>c.value);if(!tabs.length)return;
   const origTab=S.tab;const origExp=new Set(S.exp);
-  // Build print content
   let printHTML=`<div style="font-family:'Noto Sans KR',sans-serif;max-width:1100px;margin:0 auto;padding:20px">`;
   printHTML+=`<div style="margin-bottom:20px"><div style="font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px">PERFORMANCE REPORT</div><h1 style="font-size:24px;font-weight:900">${esc(D.hospital)}</h1><div style="font-size:11px;color:#9ca3af">${fM(S.ms[0])} ~ ${fM(S.lm)} · ${new Date().toLocaleDateString('ko-KR')}</div></div>`;
-  // Render each selected tab
-  tabs.forEach(tab=>{
-    S.tab=tab;S.exp=new Set();
-    // Temporarily render to get HTML
-    const tempDiv=document.createElement('div');
-    // We'll grab the current rendered content for each tab
-    const origHTML=document.getElementById('app').innerHTML;
-    S.tab=tab;rDash();
-    const content=document.getElementById('app').innerHTML;
-    // Extract just the tab content (skip header, ctrl, tabs)
-    const parser=new DOMParser();
-    const doc=parser.parseFromString(content,'text/html');
-    // Remove buttons, controls
+  tabs.forEach(tab=>{S.tab=tab;S.exp=new Set();rDash();const content=document.getElementById('app').innerHTML;
+    const doc=(new DOMParser()).parseFromString(content,'text/html');
     doc.querySelectorAll('.bbtn,.ctrl,.tabs,.cf,button,.footer').forEach(el=>el.remove());
     const hdr=doc.querySelector('.hdr');if(hdr)hdr.remove();
     printHTML+=`<div style="page-break-before:${tabs.indexOf(tab)>0?'always':'auto'};margin-bottom:20px">`;
     printHTML+=`<h2 style="font-size:16px;font-weight:800;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #6366f1">${{overview:'종합 대시보드',events:'이벤트별 성과',cpc:'CPC 검색광고',mom:'MOM 변화'}[tab]}</h2>`;
-    printHTML+=doc.body.innerHTML;
-    printHTML+=`</div>`;
-  });
+    printHTML+=doc.body.innerHTML;printHTML+=`</div>`;});
   printHTML+=`</div>`;
-  // Restore state
   S.tab=origTab;S.exp=origExp;R();
-  // Open print window
-  const pw=window.open('','_blank','width=1100,height=800');
+  openPrintWindow(printHTML);
+}
+function doSummaryPDF(){
+  const checks=document.querySelectorAll('input[name=sumEv]:checked');
+  const selIdxs=[...checks].map(c=>+c.value);
+  const evsByDB=[...D.events].map(e=>({...e,cur:evT(e,S.lm),prev:evT(e,S.ms[S.P])})).filter(e=>e.cur.d>0).sort((a,b)=>b.cur.d-a.cur.d);
+  const selEvs=selIdxs.map(i=>evsByDB[i]).filter(Boolean);
+  const ms=S.ms,lm=S.lm,co=S.co;
+  const cur=mTot(lm,co),prev=mTot(ms[S.P],co);
+  const gD=prev.d?(cur.d-prev.d)/prev.d*100:0;
+  const gCPA=prev.cpa?(cur.cpa-prev.cpa)/prev.cpa*100:0;
+  // MOM months
+  const momMs=ms.filter(m=>m<=lm).slice(-S.momMonths);
+  const momTots=momMs.map(m=>mTot(m,co));
+  const cpcTots=momMs.map(cpcMT);
+  let h=`<div style="font-family:'Noto Sans KR',sans-serif;max-width:800px;margin:0 auto;padding:30px">`;
+  // Header
+  h+=`<div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #6366f1">
+  <div style="font-size:10px;color:#6366f1;font-weight:700;letter-spacing:3px;margin-bottom:4px">MONTHLY PERFORMANCE REPORT</div>
+  <h1 style="font-size:28px;font-weight:900;margin-bottom:4px">${esc(D.hospital)}</h1>
+  <div style="font-size:12px;color:#9ca3af">${fM(lm)} 성과 요약 · ${new Date().toLocaleDateString('ko-KR')}</div></div>`;
+  // KPI Cards
+  h+=`<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px">
+  <div style="background:#f9fafb;border-radius:10px;padding:12px;text-align:center"><div style="font-size:9px;color:#6b7280;margin-bottom:2px">${fM(lm)} 조회수</div><div style="font-size:18px;font-weight:800;font-family:'JetBrains Mono'">${fN(cur.v)}</div></div>
+  <div style="background:#f9fafb;border-radius:10px;padding:12px;text-align:center"><div style="font-size:9px;color:#6b7280;margin-bottom:2px">총 DB</div><div style="font-size:18px;font-weight:800;font-family:'JetBrains Mono'">${fN(cur.d)}</div><div style="font-size:9px;margin-top:2px">${bg(gD)}</div></div>
+  <div style="background:#f9fafb;border-radius:10px;padding:12px;text-align:center"><div style="font-size:9px;color:#6b7280;margin-bottom:2px">전환율</div><div style="font-size:18px;font-weight:800;font-family:'JetBrains Mono'">${fP(cur.r)}</div></div>
+  <div style="background:#f9fafb;border-radius:10px;padding:12px;text-align:center"><div style="font-size:9px;color:#6b7280;margin-bottom:2px">DB당 투자비용</div><div style="font-size:18px;font-weight:800;font-family:'JetBrains Mono';color:#0891b2">₩${fN(cur.cpa)}</div><div style="font-size:9px;margin-top:2px">${bgInv(gCPA)}</div></div>
+  <div style="background:#f9fafb;border-radius:10px;padding:12px;text-align:center"><div style="font-size:9px;color:#6b7280;margin-bottom:2px">총 광고비</div><div style="font-size:18px;font-weight:800;font-family:'JetBrains Mono'">₩${fN(cur.c)}</div></div></div>`;
+  // Selected Main Events
+  if(selEvs.length){
+    h+=`<div style="font-size:14px;font-weight:800;margin-bottom:10px">📌 주요 이벤트</div>`;
+    selEvs.forEach(ev=>{
+      const dG=ev.prev.d?(ev.cur.d-ev.prev.d)/ev.prev.d*100:0;
+      h+=`<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700"><span style="font-size:8px;padding:1px 5px;border-radius:3px;background:#eef2ff;color:#6366f1;margin-right:4px">${ev.l}</span>${esc(ev.n.slice(0,40))}</div>
+        <div style="font-size:16px;font-weight:800;color:#0891b2;font-family:'JetBrains Mono'">₩${fN(ev.cur.cpa)} <span style="font-size:9px;color:#9ca3af">DB당비용</span></div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <thead><tr style="border-bottom:1px solid #e5e7eb"><th style="text-align:left;padding:4px 6px;font-size:9px;color:#9ca3af;font-weight:600">월</th><th style="text-align:center;padding:4px 6px;font-size:9px;color:#9ca3af">조회수</th><th style="text-align:center;padding:4px 6px;font-size:9px;color:#9ca3af">DB</th><th style="text-align:center;padding:4px 6px;font-size:9px;color:#9ca3af">전환율</th><th style="text-align:right;padding:4px 6px;font-size:9px;color:#9ca3af">비용</th></tr></thead><tbody>`;
+      ms.slice(-4).forEach(m=>{const t=evT(ev,m);const isL=m===lm;
+        h+=`<tr style="${isL?'background:#eef2ff;font-weight:700':''}"><td style="padding:5px 6px;font-family:'Noto Sans KR';font-weight:600">${fM(m)}</td><td style="text-align:center;padding:5px 6px;font-family:'JetBrains Mono'">${fN(t.v)}</td><td style="text-align:center;padding:5px 6px;font-family:'JetBrains Mono'">${fN(t.d)}</td><td style="text-align:center;padding:5px 6px;font-family:'JetBrains Mono'">${fP(t.r)}</td><td style="text-align:right;padding:5px 6px;font-family:'JetBrains Mono'">₩${fN(t.c)}</td></tr>`;});
+      h+=`</tbody></table>
+      <div style="margin-top:6px;font-size:10px;color:#6b7280">DB 성장 ${bg(dG)}</div></div>`;
+    });
+  }
+  // MOM Summary
+  h+=`<div style="font-size:14px;font-weight:800;margin:16px 0 10px">📊 MOM 종합 (최근 ${momMs.length}개월)</div>`;
+  h+=`<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="border-bottom:2px solid #6366f1"><th style="text-align:left;padding:6px;font-size:9px;color:#9ca3af">구분</th>`;
+  momMs.forEach(m=>h+=`<th style="text-align:center;padding:6px;font-size:9px;color:#9ca3af">${fM(m)}</th>`);
+  h+=`<th style="text-align:center;padding:6px;font-size:9px;color:#9ca3af">전월비</th></tr></thead><tbody>`;
+  const mL=momMs.length-1,mP=momMs.length-2;
+  [["조회수",momTots.map(t=>t.v),fN,0],["총 DB",momTots.map(t=>t.d),fN,0],["전환율",momTots.map(t=>t.r),fP,0],["총 광고비",momTots.map(t=>t.c),v=>"₩"+fN(v),0],["DB당 투자비용",momTots.map(t=>t.cpa),v=>"₩"+fN(v),1]].forEach(([lb,vals,fmt,inv])=>{
+    h+=`<tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px;font-weight:600;font-family:'Noto Sans KR'">${lb}</td>`;
+    vals.forEach((v,i)=>h+=`<td style="text-align:center;padding:6px;font-family:'JetBrains Mono'${i===mL?';background:#eef2ff;color:#4338ca;font-weight:700':''}">${fmt(v)}</td>`);
+    const l=vals[mL],p=vals[mP];h+=`<td style="text-align:center;padding:6px">${p?(inv?bgInv:bg)((l-p)/p*100):""}</td></tr>`;});
+  // CPC row if exists
+  if(cpcTots.some(c=>c.cn>0)){
+    h+=`<tr style="border-top:1px solid #e5e7eb"><td style="padding:6px;font-weight:600;color:#6b7280">CPC DB</td>`;
+    cpcTots.forEach((c,i)=>h+=`<td style="text-align:center;padding:6px;font-family:'JetBrains Mono';color:#6366f1${i===mL?';background:#eef2ff;font-weight:700':''}">${fN(c.cn)}</td>`);
+    const l=cpcTots[mL].cn,p=cpcTots[mP].cn;h+=`<td style="text-align:center;padding:6px">${p?bg((l-p)/p*100):""}</td></tr>`;
+  }
+  h+=`</tbody></table>`;
+  // Footer
+  h+=`<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;text-align:center;font-size:9px;color:#9ca3af">
+  DB = CPV전환 + CPC전환 · DB당 투자비용 = (CPV비용+CPC비용) ÷ 총DB · 강남언니 성과 리포트</div></div>`;
+  openPrintWindow(h);
+}
+function openPrintWindow(html){
+  const pw=window.open('','_blank','width=900,height=800');
   pw.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>*{margin:0;padding:0;box-sizing:border-box}body{background:#fff;color:#1a1d26;font-family:'Noto Sans KR',sans-serif;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .B{display:inline-flex;align-items:center;gap:2px;padding:1px 5px;border-radius:10px;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace}.B.u{background:#ecfdf5;color:#059669}.B.d{background:#fef2f2;color:#dc2626}.B.f{background:#fffbeb;color:#d97706}
   .card,.CC,.ev,.mom{background:#fff;border:1px solid #e5e7eb;border-radius:11px;padding:14px;margin-bottom:8px;break-inside:avoid}
   .grid{display:grid;gap:10px;margin-bottom:14px}.g5{grid-template-columns:repeat(5,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:1fr 1fr}
   .card .kl{font-size:10px;color:#6b7280;margin-bottom:3px}.card .kv{font-size:20px;font-weight:800;letter-spacing:-1px;font-family:'JetBrains Mono',monospace}.card .kf{display:flex;align-items:center;gap:3px;margin-top:2px;font-size:9px;color:#9ca3af}
-  .B{display:inline-flex;align-items:center;gap:2px;padding:1px 5px;border-radius:10px;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace}.B.u{background:#ecfdf5;color:#059669}.B.d{background:#fef2f2;color:#dc2626}.B.f{background:#fffbeb;color:#d97706}
-  .ev .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;margin-top:10px}.ev .met{padding:6px 8px;background:#f9fafb;border-radius:6px}.ev .met .ml{font-size:8px;color:#9ca3af;margin-bottom:1px}.ev .met .mv{font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace}.ev .met.hl-met{background:#eef2ff;border:1px solid #c7d2fe}
+  .ev .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;margin-top:10px}.ev .met{padding:6px 8px;background:#f9fafb;border-radius:6px}.ev .met .ml{font-size:8px;color:#9ca3af}.ev .met .mv{font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace}.ev .met.hl-met{background:#eef2ff;border:1px solid #c7d2fe}
   .fl{display:inline-block;font-size:8px;padding:1px 5px;border-radius:3px;font-weight:600;margin-right:3px}.fl-KR{background:#eef2ff;color:#6366f1}.fl-JP{background:#fef3c7;color:#92400e}.fl-TW{background:#fdf2f8;color:#db2777}.fl-EN{background:#ecfdf5;color:#059669}.fl-TH{background:#fffbeb;color:#d97706}.fl-CN{background:#fef2f2;color:#dc2626}
   table.MT{width:100%;border-collapse:collapse}.MT th{padding:5px 8px;font-size:9px;font-weight:600;color:#9ca3af;text-align:center;border-bottom:1px solid #f3f4f6}.MT th:first-child{text-align:left}.MT td{padding:7px 8px;font-size:11px;text-align:center;font-family:'JetBrains Mono',monospace;color:#374151;border-bottom:1px solid #fafafa}.MT td:first-child{text-align:left;font-family:'Noto Sans KR';font-weight:600;color:#111827}.MT td.hl{background:#eef2ff;color:#4338ca;font-weight:700}
-  .st2{font-size:14px;font-weight:700;margin:18px 0 6px}.CC h3{font-size:11px;font-weight:600;color:#6b7280;margin-bottom:10px}
-  canvas{display:none}
+  .st2{font-size:14px;font-weight:700;margin:18px 0 6px}canvas{display:none}
   @media print{body{margin:0}h2{page-break-after:avoid}.ev,.mom,.card{break-inside:avoid}}
-  </style></head><body>${printHTML}
-  <script>setTimeout(()=>window.print(),300);<\/script></body></html>`);
+  </style></head><body>${html}
+  <script>setTimeout(()=>window.print(),500);<\/script></body></html>`);
   pw.document.close();
 }
 R();
