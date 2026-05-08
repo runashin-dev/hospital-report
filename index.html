@@ -384,7 +384,7 @@ function rDash(){
       // ===== EXPANDED DETAIL =====
       if(S.exp.has(eid)){
         h+=`<div class="DP"><div class="grid g2" style="margin-bottom:8px">
-        <div><div style="font-size:10px;color:#6b7280;font-weight:600;margin-bottom:4px">DB & DB당비용 추이</div><div style="height:140px"><canvas id="dc_${ei}"></canvas></div></div>
+        <div><div style="font-size:10px;color:#6b7280;font-weight:600;margin-bottom:4px">DB & DB당비용 추이</div><div style="height:140px"><canvas id="dc_${ei}" data-eid="${eid}"></canvas></div></div>
         <div><div style="font-size:10px;color:#6b7280;font-weight:600;margin-bottom:4px">월별 상세</div><div style="overflow-x:auto">
         <table class="MT"><thead><tr><th>월</th><th>조회수</th><th>DB</th><th>전환율</th><th>비용</th></tr></thead><tbody>`;
         ms.forEach(m=>{const t=evT(ev,m);const isL=m===lm;h+=`<tr><td${isL?' class="hl"':""}>${fM(m)}</td><td${isL?' class="hl"':""}>${fN(t.v)}</td><td${isL?' class="hl"':""}>${fN(t.d)}${t.cpcD>0?` <span style="font-size:9px;color:#6366f1">(CPC ${t.cpcD})</span>`:""}</td><td${isL?' class="hl"':""}>${fP(t.r)}</td><td${isL?' class="hl"':""}>₩${fN(t.c)}</td></tr>`;});
@@ -502,17 +502,22 @@ function rCh(){
     S.ch.c2=new Chart(c2.getContext("2d"),{type:"line",data:{labels:lbs,datasets:[{label:"DB당 투자비용",data:tots.map(t=>t.cpa),borderColor:"#0891b2",backgroundColor:"rgba(8,145,178,.06)",borderWidth:3,pointRadius:5,pointBackgroundColor:"#0891b2",pointBorderColor:"#fff",pointBorderWidth:2,fill:true,tension:.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...sty.tt,callbacks:{label:c=>"₩"+fN(c.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:10}}},y:{grid:sty.grid,ticks:{...sty.tick,callback:v=>"₩"+fN(v)},min:Math.floor(mn/1000)*1000,max:Math.ceil(mx/1000)*1000}}}});}
   // Detail charts
   if(S.exp.size>0&&S.tab==="events"){
-    S.exp.forEach(eid=>{
-      const evIdx=D.events.findIndex(e=>btoa(unescape(encodeURIComponent(e.n)))===eid);
-      if(evIdx>=0){const cv=document.getElementById("dc_"+evIdx);
-        if(cv){const ev=D.events[evIdx],dbs=ms.map(m=>evT(ev,m).d),cpas=ms.map(m=>evT(ev,m).cpa).filter(v=>v>0);
-          const mn=cpas.length?Math.min(...cpas)*.8:0;
-          S.ch["d"+evIdx]=new Chart(cv.getContext("2d"),{type:"bar",data:{labels:lbs,datasets:[
-            {label:"DB",data:dbs,backgroundColor:"rgba(16,185,129,.2)",borderColor:"#059669",borderWidth:1,borderRadius:3,yAxisID:"y"},
-            {label:"DB당비용",data:ms.map(m=>evT(ev,m).cpa),type:"line",borderColor:"#0891b2",borderWidth:2,pointRadius:3,pointBackgroundColor:"#0891b2",yAxisID:"y1",tension:.3}
-          ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:"#6b7280",font:{size:8},boxWidth:6}},tooltip:sty.tt},scales:{
-            x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:9}}},y:{position:"left",grid:sty.grid,ticks:{...sty.tick}},
-            y1:{position:"right",grid:{drawOnChartArea:false},ticks:{...sty.tick,callback:v=>"₩"+fN(v)},min:mn>0?Math.floor(mn/1000)*1000:0}}}});}}
+    // Find all expanded canvases by scanning DOM
+    document.querySelectorAll('canvas[id^="dc_"]').forEach(cv=>{
+      if(cv.dataset.rendered)return;
+      const ei=cv.id.replace("dc_","");
+      const eid=cv.dataset.eid;if(!eid)return;
+      const ev=D.events.find(e=>btoa(unescape(encodeURIComponent(e.n)))===eid);
+      if(!ev)return;
+      cv.dataset.rendered="1";
+      const dbs=ms.map(m=>evT(ev,m).d),cpas=ms.map(m=>evT(ev,m).cpa).filter(v=>v>0);
+      const mn=cpas.length?Math.min(...cpas)*.8:0;
+      S.ch["d"+ei]=new Chart(cv.getContext("2d"),{type:"bar",data:{labels:lbs,datasets:[
+        {label:"DB",data:dbs,backgroundColor:"rgba(16,185,129,.2)",borderColor:"#059669",borderWidth:1,borderRadius:3,yAxisID:"y"},
+        {label:"DB당비용",data:ms.map(m=>evT(ev,m).cpa),type:"line",borderColor:"#0891b2",borderWidth:2,pointRadius:3,pointBackgroundColor:"#0891b2",yAxisID:"y1",tension:.3}
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:"#6b7280",font:{size:8},boxWidth:6}},tooltip:sty.tt},scales:{
+        x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:9}}},y:{position:"left",grid:sty.grid,ticks:{...sty.tick}},
+        y1:{position:"right",grid:{drawOnChartArea:false},ticks:{...sty.tick,callback:v=>"₩"+fN(v)},min:mn>0?Math.floor(mn/1000)*1000:0}}}});
     });
   }
   // CPC charts
@@ -636,7 +641,14 @@ function goHome(){
   S.scr="home";S.files={cpv:null,cpc:null,tag:null};D=null;R();
 }
 async function saveCurrent(){
-  if(!D)return;const ok=await saveH(D.hospital,D);isDirty=false;S.statusMsg=ok?`✓ "${D.hospital}" 저장 완료`:"저장 실패";S.statusType=ok?"ok":"err";R();
+  if(!D)return;
+  const newName=prompt("병원명을 확인/수정하세요:",D.hospital);
+  if(newName===null)return; // 취소
+  const trimmed=newName.trim();if(!trimmed)return;
+  // If name changed, delete old entry
+  if(trimmed!==D.hospital)await delH(D.hospital);
+  D.hospital=trimmed;S.hn=trimmed;
+  const ok=await saveH(trimmed,D);isDirty=false;S.statusMsg=ok?`✓ "${trimmed}" 저장 완료`:"저장 실패";S.statusType=ok?"ok":"err";R();
 }
 async function gen(){const btn=document.getElementById("gb");if(btn){btn.textContent="처리중…";btn.disabled=true;}
   try{const data=await parseFiles();D=data;
@@ -699,19 +711,33 @@ function doPDFExport(){
   const mode=document.getElementById('pdfMode').value;
   document.getElementById('pdfModal').remove();
   if(mode==='summary') return doSummaryPDF();
-  // Full export (existing logic)
+  // Full export
   const checks=document.querySelectorAll('input[name=fullTab]:checked');
   const tabs=[...checks].map(c=>c.value);if(!tabs.length)return;
   const origTab=S.tab;const origExp=new Set(S.exp);
   let printHTML=`<div style="font-family:'Noto Sans KR',sans-serif;max-width:1100px;margin:0 auto;padding:20px">`;
   printHTML+=`<div style="margin-bottom:20px"><div style="font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px">PERFORMANCE REPORT</div><h1 style="font-size:24px;font-weight:900">${esc(D.hospital)}</h1><div style="font-size:11px;color:#9ca3af">${fM(S.ms[0])} ~ ${fM(S.lm)} · ${new Date().toLocaleDateString('ko-KR')}</div></div>`;
-  tabs.forEach(tab=>{S.tab=tab;S.exp=new Set();rDash();const content=document.getElementById('app').innerHTML;
+  tabs.forEach(tab=>{
+    S.tab=tab;S.exp=new Set();rDash();
+    // Wait for charts to render, then convert canvas→img
+    setTimeout(()=>{},100);rCh();
+    // Convert all canvases to images
+    document.querySelectorAll('#app canvas').forEach(cv=>{
+      try{
+        const img=document.createElement('img');
+        img.src=cv.toDataURL('image/png');
+        img.style.cssText='width:100%;max-height:220px;object-fit:contain';
+        cv.parentNode.replaceChild(img,cv);
+      }catch(e){}
+    });
+    const content=document.getElementById('app').innerHTML;
     const doc=(new DOMParser()).parseFromString(content,'text/html');
     doc.querySelectorAll('.bbtn,.ctrl,.tabs,.cf,button,.footer').forEach(el=>el.remove());
     const hdr=doc.querySelector('.hdr');if(hdr)hdr.remove();
     printHTML+=`<div style="page-break-before:${tabs.indexOf(tab)>0?'always':'auto'};margin-bottom:20px">`;
     printHTML+=`<h2 style="font-size:16px;font-weight:800;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #6366f1">${{overview:'종합 대시보드',events:'이벤트별 성과',cpc:'CPC 검색광고',mom:'MOM 변화'}[tab]}</h2>`;
-    printHTML+=doc.body.innerHTML;printHTML+=`</div>`;});
+    printHTML+=doc.body.innerHTML;printHTML+=`</div>`;
+  });
   printHTML+=`</div>`;
   S.tab=origTab;S.exp=origExp;R();
   openPrintWindow(printHTML);
@@ -794,7 +820,7 @@ function openPrintWindow(html){
   .ev .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:6px;margin-top:10px}.ev .met{padding:6px 8px;background:#f9fafb;border-radius:6px}.ev .met .ml{font-size:8px;color:#9ca3af}.ev .met .mv{font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace}.ev .met.hl-met{background:#eef2ff;border:1px solid #c7d2fe}
   .fl{display:inline-block;font-size:8px;padding:1px 5px;border-radius:3px;font-weight:600;margin-right:3px}.fl-KR{background:#eef2ff;color:#6366f1}.fl-JP{background:#fef3c7;color:#92400e}.fl-TW{background:#fdf2f8;color:#db2777}.fl-EN{background:#ecfdf5;color:#059669}.fl-TH{background:#fffbeb;color:#d97706}.fl-CN{background:#fef2f2;color:#dc2626}
   table.MT{width:100%;border-collapse:collapse}.MT th{padding:5px 8px;font-size:9px;font-weight:600;color:#9ca3af;text-align:center;border-bottom:1px solid #f3f4f6}.MT th:first-child{text-align:left}.MT td{padding:7px 8px;font-size:11px;text-align:center;font-family:'JetBrains Mono',monospace;color:#374151;border-bottom:1px solid #fafafa}.MT td:first-child{text-align:left;font-family:'Noto Sans KR';font-weight:600;color:#111827}.MT td.hl{background:#eef2ff;color:#4338ca;font-weight:700}
-  .st2{font-size:14px;font-weight:700;margin:18px 0 6px}canvas{display:none}
+  .st2{font-size:14px;font-weight:700;margin:18px 0 6px}img{max-width:100%}
   @media print{body{margin:0}h2{page-break-after:avoid}.ev,.mom,.card{break-inside:avoid}}
   </style></head><body>${html}
   <script>setTimeout(()=>window.print(),500);<\/script></body></html>`);
