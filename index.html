@@ -332,7 +332,7 @@ for(const[tab,label] of [['sisul','시술'],['susul','수술']]){
 if(!mt[tab])continue;
 h+=`<h3 style="font-size:1.1em;margin:20px 0 14px;color:#333">🏆 ${label} 월별 TOP 10</h3>`;
 h+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px">';
-for(const[mkey,mlabel] of [['apr','5월'],['may','5월'],['jun','6월']]){
+for(const[mkey,mlabel] of [['apr','5월'],['may','6월'],['jun','7월']]){
 const items=mt[tab][mkey]||[];
 h+=`<div style="background:#fff;border-radius:14px;padding:18px 20px;border:1px solid #e0e0e8"><h4 style="font-size:.95em;margin-bottom:12px;color:#333">${mlabel} 추천</h4>`;
 items.forEach((i,idx)=>{
