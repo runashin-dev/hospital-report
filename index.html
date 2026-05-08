@@ -239,7 +239,7 @@ function evCPC(n,m){const cd=D.cpc[n];if(!cd)return{cl:0,cn:0,tc:0};const x=cd[m
 function evT(ev,m){const cpv=evCPV(ev,m),cpc=evCPC(ev.n,m);const td=cpv.d+cpc.cn,tc=cpv.c+cpc.tc;return{v:cpv.v,d:td,c:tc,cpa:td>0?tc/td:0,r:cpv.v>0?td/cpv.v:0,cpvD:cpv.d,cpcD:cpc.cn};}
 function mTot(m,co){let v=0,d=0,c=0;D.events.forEach(ev=>{if(co!=="ALL"&&ev.l!==co)return;const t=evT(ev,m);v+=t.v;d+=t.d;c+=t.c;});return{v,d,c,cpa:d>0?c/d:0,r:v>0?d/v:0};}
 function cpvMTot(m,co){let v=0,d=0,c=0;D.events.forEach(ev=>{if(co!=="ALL"&&ev.l!==co)return;const t=evCPV(ev,m);v+=t.v;d+=t.d;c+=t.c;});return{v,d,c,cpa:d>0?c/d:0};}
-function cpcMT(m){let cl=0,cn=0,tc=0;Object.values(D.cpc).forEach(e=>{const x=e[m];if(x){cl+=x[1];cn+=x[5];tc+=x[4];}});return{cl,cn,tc,cpa:cn>0?tc/cn:0};}
+function cpcMT(m,co){let cl=0,cn=0,tc=0;Object.entries(D.cpc).forEach(([name,e])=>{if(co&&co!=="ALL"&&dlang(name)!==co)return;const x=e[m];if(x){cl+=x[1];cn+=x[5];tc+=x[4];}});return{cl,cn,tc,cpa:cn>0?tc/cn:0};}
 
 // ===== FILE PARSE =====
 function parseFiles(){
@@ -410,10 +410,18 @@ function rDash(){
 
   // ===== CPC TAB =====
   if(S.tab==="cpc"){
-    const ct=cpcMT(lm);
-    h+=`<div class="st2">CPC 검색광고</div><div class="grid g4"><div class="card"><div class="kl">클릭수</div><div class="kv">${fN(ct.cl)}</div></div><div class="card"><div class="kl">DB</div><div class="kv">${fN(ct.cn)}</div></div><div class="card"><div class="kl">광고비</div><div class="kv">₩${fN(ct.tc)}</div></div><div class="card"><div class="kl">DB당 투자비용</div><div class="kv" style="color:#0891b2">₩${fN(ct.cpa)}</div></div></div>`;
+    const ct=cpcMT(lm,"ALL");
+    const ctP=cpcMT(ms[S.P],"ALL");
+    h+=`<div class="st2">CPC 검색광고</div><div class="grid g4"><div class="card"><div class="kl">${fM(lm)} 클릭수</div><div class="kv">${fN(ct.cl)}</div><div class="kf">${ctP.cl?bg((ct.cl-ctP.cl)/ctP.cl*100):""} 전월비</div></div><div class="card"><div class="kl">DB</div><div class="kv">${fN(ct.cn)}</div><div class="kf">${ctP.cn?bg((ct.cn-ctP.cn)/ctP.cn*100):""} 전월비</div></div><div class="card"><div class="kl">광고비</div><div class="kv">₩${fN(ct.tc)}</div></div><div class="card"><div class="kl">DB당 투자비용</div><div class="kv" style="color:#0891b2">₩${fN(ct.cpa)}</div><div class="kf">${ctP.cpa?bgInv((ct.cpa-ctP.cpa)/ctP.cpa*100):""} 전월비</div></div></div>`;
+    // Charts
+    h+=`<div class="grid g2" style="margin-bottom:14px">
+    <div class="CC"><h3>📊 이벤트별 CPC 성과 (${fM(lm)})</h3><div class="CH"><canvas id="cpcBar"></canvas></div></div>
+    <div class="CC"><h3>📈 월별 CPC DB & 광고비 추이</h3><div class="CH"><canvas id="cpcTrend"></canvas></div></div></div>`;
+    h+=`<div class="CC" style="margin-bottom:14px"><h3>⚡ 월별 CTR & 전환율 변화</h3><div style="height:180px"><canvas id="cpcEff"></canvas></div></div>`;
+    // Per-event tables
     Object.entries(D.cpc).forEach(([name,evC])=>{
-      h+=`<div class="CC" style="margin-bottom:8px"><h3>🔍 ${esc(name.slice(0,50))}</h3><table class="MT"><thead><tr><th>월</th><th>클릭</th><th>CTR</th><th>CPC</th><th>광고비</th><th>DB</th><th>DB당비용</th></tr></thead><tbody>`;
+      const lang=dlang(name),tr=autoTr(name);
+      h+=`<div class="CC" style="margin-bottom:8px"><h3>🔍 <span class="fl fl-${lang}">${FL[lang]||""} ${lang}</span> ${esc(name.slice(0,45))}${lang!=="KR"&&tr&&S.showTr?` <span style="font-size:10px;color:#6366f1">→ ${esc(tr)}</span>`:""}</h3><table class="MT"><thead><tr><th>월</th><th>클릭</th><th>CTR</th><th>CPC</th><th>광고비</th><th>DB</th><th>DB당비용</th></tr></thead><tbody>`;
       ms.forEach(m=>{const x=evC[m];if(!x)return;const isL=m===lm;h+=`<tr><td${isL?' class="hl"':""}>${fM(m)}</td><td${isL?' class="hl"':""}>${fN(x[1])}</td><td${isL?' class="hl"':""}>${fP(x[2])}</td><td${isL?' class="hl"':""}>₩${fN(x[3])}</td><td${isL?' class="hl"':""}>₩${fN(x[4])}</td><td style="font-weight:700;color:#6366f1${isL?";background:#eef2ff":""}">${fN(x[5])}</td><td style="color:#0891b2;font-weight:700${isL?";background:#eef2ff":""}">₩${fN(x[5]>0?x[4]/x[5]:0)}</td></tr>`;});
       h+=`</tbody></table></div>`;});
   }
@@ -426,7 +434,7 @@ function rDash(){
     const hlIdx=momMs.indexOf(S.lm);const mL=hlIdx>=0?hlIdx:momMs.length-1;const mP=mL-1;
     const tots=momMs.map(m=>mTot(m,co));
     const cpvTots=momMs.map(m=>cpvMTot(m,co));
-    const cpcTots=momMs.map(cpcMT);
+    const cpcTots=momMs.map(m=>cpcMT(m,co));
     h+=`<div class="st2">MOM 변화 <span style="font-size:11px;color:#9ca3af;font-weight:400">최근 ${S.momMonths}개월</span></div>`;
     function momT(title,rows,detailId,detailRows){
       let t=`<div class="mom"><h4>${title}</h4><table class="MT"><thead><tr><th>구분</th>`;
@@ -451,9 +459,14 @@ function rDash(){
     ]);
     [...new Set(D.events.map(e=>e.l))].forEach(c=>{const cts=momMs.map(m=>mTot(m,c));if(cts.every(t=>t.d===0))return;
       const cpvC=momMs.map(m=>cpvMTot(m,c));
+      const cpcC=momMs.map(m=>cpcMT(m,c));
       h+=momT(`<span class="fl fl-${c}">${FL[c]||""}</span> ${CL[c]||c}`,[["조회수",cts.map(t=>t.v),fN],["DB",cts.map(t=>t.d),fN],["광고비",cts.map(t=>t.c),v=>"₩"+fN(v)],["DB당비용",cts.map(t=>t.cpa),v=>"₩"+fN(v),1]],"country_"+c,[
         ["└ CPV DB당비용",cpvC.map(t=>t.cpa),v=>"₩"+fN(v),1],
+        ["└ CPC DB당비용",cpcC.map(t=>t.cpa),v=>v>0?"₩"+fN(v):"-",1],
         ["└ CPV 광고비",cpvC.map(t=>t.c),v=>"₩"+fN(v)],
+        ["└ CPC 광고비",cpcC.map(t=>t.tc),v=>"₩"+fN(v)],
+        ["└ CPV DB",cpvC.map(t=>t.d),fN],
+        ["└ CPC DB",cpcC.map(t=>t.cn),fN],
       ]);});
     h+=`<div class="st2">이벤트별 MOM (상위 10)</div>`;
     D.events.slice().sort((a,b)=>momMs.reduce((s,m)=>(b.m[m]?b.m[m][1]:0)+s,0)-momMs.reduce((s,m)=>(a.m[m]?a.m[m][1]:0)+s,0)).slice(0,10).forEach((ev,i)=>{
@@ -501,6 +514,43 @@ function rCh(){
             x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:9}}},y:{position:"left",grid:sty.grid,ticks:{...sty.tick}},
             y1:{position:"right",grid:{drawOnChartArea:false},ticks:{...sty.tick,callback:v=>"₩"+fN(v)},min:mn>0?Math.floor(mn/1000)*1000:0}}}});}}
     });
+  }
+  // CPC charts
+  const cpcBar=document.getElementById("cpcBar");
+  if(cpcBar){
+    const COLORS=["#6366f1","#06b6d4","#10b981","#f59e0b","#ec4899","#8b5cf6","#ef4444"];
+    const cpcEntries=Object.entries(D.cpc).map(([name,evC])=>{const x=evC[lm];const lang=dlang(name);const tr=lang!=="KR"?autoTr(name):"";return{name,db:x?x[5]:0,tc:x?x[4]:0,cpa:x&&x[5]>0?x[4]/x[5]:0,lang,tr};}).filter(e=>e.db>0).sort((a,b)=>b.db-a.db);
+    const labels=cpcEntries.map(e=>S.showTr&&e.tr?e.tr.slice(0,16):e.name.length>16?e.name.slice(0,16)+"…":e.name);
+    S.ch.cpcBar=new Chart(cpcBar.getContext("2d"),{type:"bar",data:{labels,datasets:[
+      {label:"DB",data:cpcEntries.map(e=>e.db),backgroundColor:cpcEntries.map((_,i)=>COLORS[i%COLORS.length]+"50"),borderColor:cpcEntries.map((_,i)=>COLORS[i%COLORS.length]),borderWidth:1,borderRadius:4,yAxisID:"y"},
+      {label:"DB당비용(₩만)",data:cpcEntries.map(e=>Math.round(e.cpa/10000*10)/10),type:"line",borderColor:"#ef4444",borderWidth:2,pointRadius:5,pointBackgroundColor:"#ef4444",pointBorderColor:"#fff",pointBorderWidth:2,yAxisID:"y1",tension:.3}
+    ]},options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:"#6b7280",font:{size:9},boxWidth:8}},tooltip:{...sty.tt,callbacks:{label:c=>c.datasetIndex===0?fN(c.raw)+"건":"₩"+fN(c.raw*10000)}}},scales:{
+      x:{position:"top",grid:sty.grid,ticks:sty.tick,title:{display:true,text:"DB",color:"#6366f1",font:{size:8}}},
+      y:{grid:{display:false},ticks:{color:"#374151",font:{size:10}}},
+      y1:{position:"bottom",grid:{drawOnChartArea:false},ticks:{...sty.tick,callback:v=>v+"만"},title:{display:true,text:"DB당비용",color:"#ef4444",font:{size:8}}}}}});
+  }
+  const cpcTrend=document.getElementById("cpcTrend");
+  if(cpcTrend){
+    const cpcByMonth=ms.map(m=>cpcMT(m,"ALL"));
+    S.ch.cpcTrend=new Chart(cpcTrend.getContext("2d"),{type:"bar",data:{labels:lbs,datasets:[
+      {label:"CPC DB",data:cpcByMonth.map(c=>c.cn),backgroundColor:"rgba(99,102,241,.3)",borderColor:"#6366f1",borderWidth:1,borderRadius:4,yAxisID:"y"},
+      {label:"CPC 광고비",data:cpcByMonth.map(c=>c.tc),type:"line",borderColor:"#ef4444",backgroundColor:"rgba(239,68,68,.06)",borderWidth:2.5,pointRadius:4,pointBackgroundColor:"#ef4444",pointBorderColor:"#fff",pointBorderWidth:2,fill:true,yAxisID:"y1",tension:.3}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:"#6b7280",font:{size:9},boxWidth:8}},tooltip:{...sty.tt,callbacks:{label:c=>c.datasetIndex===0?fN(c.raw)+"건":"₩"+fN(c.raw)}}},scales:{
+      x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:10}}},
+      y:{position:"left",grid:sty.grid,ticks:sty.tick,title:{display:true,text:"DB",color:"#6366f1",font:{size:8}}},
+      y1:{position:"right",grid:{drawOnChartArea:false},ticks:{...sty.tick,callback:v=>"₩"+fN(v)},title:{display:true,text:"광고비",color:"#ef4444",font:{size:8}}}}}});
+  }
+  const cpcEff=document.getElementById("cpcEff");
+  if(cpcEff){
+    const COLORS=["#6366f1","#06b6d4","#10b981","#f59e0b","#ec4899"];
+    const cpcEntries=Object.entries(D.cpc).slice(0,5);
+    S.ch.cpcEff=new Chart(cpcEff.getContext("2d"),{type:"line",data:{labels:lbs,datasets:cpcEntries.map(([name,evC],i)=>{
+      const lang=dlang(name),tr=lang!=="KR"?autoTr(name):"";
+      const label=S.showTr&&tr?tr.slice(0,12):name.length>12?name.slice(0,12)+"…":name;
+      return{label,data:ms.map(m=>{const x=evC[m];return x&&x[0]>0?(x[5]/x[0]*100):null;}),borderColor:COLORS[i%COLORS.length],borderWidth:2.5,pointRadius:4,pointBackgroundColor:COLORS[i%COLORS.length],pointBorderColor:"#fff",pointBorderWidth:2,tension:.3,spanGaps:true};
+    })},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:"#6b7280",font:{size:9},boxWidth:8}},tooltip:{...sty.tt,callbacks:{label:c=>c.dataset.label+": "+c.parsed.y.toFixed(1)+"%"}}},scales:{
+      x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:10}}},
+      y:{grid:sty.grid,ticks:{...sty.tick,callback:v=>v.toFixed(1)+"%"},title:{display:true,text:"전환율 (DB÷조회)",color:"#6b7280",font:{size:8}}}}}});
   }
 }
 
@@ -678,7 +728,7 @@ function doSummaryPDF(){
   // MOM months
   const momMs=ms.filter(m=>m<=lm).slice(-S.momMonths);
   const momTots=momMs.map(m=>mTot(m,co));
-  const cpcTots=momMs.map(cpcMT);
+  const cpcTots=momMs.map(m=>cpcMT(m,co));
   let h=`<div style="font-family:'Noto Sans KR',sans-serif;max-width:800px;margin:0 auto;padding:30px">`;
   // Header
   h+=`<div style="text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #6366f1">
