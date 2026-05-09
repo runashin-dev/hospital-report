@@ -220,7 +220,7 @@ function mkSVG(kw){
 let D=null,savedList=[],isDirty=false;
 // Auto-calculate elapsed days from today's date
 function autoElapsed(){const d=new Date();return d.getDate();}
-let S={scr:"home",tab:"overview",co:"ALL",sort:"db",exp:new Set(),proj:true,cpvE:autoElapsed(),mktE:autoElapsed(),ch:{},hn:"",statusMsg:"",statusType:"",files:{cpv:null,cpc:null,tag:null},showTr:false,showComments:true,momDetail:new Set(),momMonths:3,opFilter:"ALL",baseMo:null};
+let S={scr:"home",tab:"overview",co:"ALL",sort:"db",exp:new Set(),proj:true,cpvE:autoElapsed(),mktE:autoElapsed(),ch:{},hn:"",statusMsg:"",statusType:"",files:{cpv:null,cpc:null,tag:null},showTr:false,showComments:false,showCPA:true,momDetail:new Set(),momMonths:3,opFilter:"ALL",baseMo:null};
 function init(){if(!D)return;
   const allMs=D.months;
   // baseMo = analysis target month. Only show data up to this month.
@@ -290,7 +290,7 @@ function rDash(){
   const co=S.co,ms=S.ms,lm=S.lm,l3=ms.slice(-3);
   let h=`<button class="bbtn" onclick="goHome()">← 병원 목록</button>`;
   h+=`<div class="hdr"><div><div style="font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px">PERFORMANCE REPORT</div><h1>${esc(D.hospital)}</h1><div style="font-size:11px;color:#9ca3af;margin-top:2px">${fM(ms[0])} ~ ${fM(lm)} ${D.tag?`· 📈 시장 ${Object.keys(D.tag).length}개 키워드`:"· <span style='color:#ef4444'>⚠️ 태그SU 없음</span>"}</div></div><div style="display:flex;gap:8px;align-items:center"><button onclick="exportPDF()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">📄 PDF</button><button onclick="saveCurrent()" style="padding:7px 16px;border-radius:8px;border:1px solid ${isDirty?"#6366f1":"#e5e7eb"};background:${isDirty?"#6366f1":"#fff"};color:${isDirty?"#fff":"#6b7280"};font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">💾 ${isDirty?"저장하기":"저장됨"}</button></div></div>`;
-  h+=`<div class="ctrl"><label class="tg"><input type="checkbox" id="pt" ${S.proj?"checked":""} onchange="S.proj=this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">예상실적 보정</span></label><div class="dv"></div><div class="cg"><span class="cl">병원</span><input type="number" class="ni" id="ce" value="${S.cpvE}" min="1" max="31"><span class="cl">일</span></div><div class="cg"><span class="cl">시장</span><input type="number" class="ni" id="me" value="${S.mktE}" min="1" max="31"><span class="cl">일</span></div><div class="dv"></div><div class="cg"><span class="cl">기준월</span><select class="ni" style="width:auto;padding:3px 6px;font-size:10px" onchange="S.baseMo=this.value;R()">${D.months.map(m=>`<option value="${m}" ${m===S.baseMo?"selected":""}>${fM(m)}</option>`).join("")}</select></div><div class="dv"></div><div class="cg"><span class="cl">MOM</span><input type="number" class="ni" id="momM" value="${S.momMonths}" min="2" max="${ms.length}" style="width:32px"><span class="cl">개월</span></div><div class="dv"></div><label class="tg"><input type="checkbox" id="trToggle" ${S.showTr?"checked":""} onchange="S.showTr=this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">번역 보기</span></label><div class="dv"></div><span onclick="document.getElementById('tagUp').click()" style="font-size:10px;color:${D.tag?'#059669':'#dc2626'};cursor:pointer;font-weight:600">${D.tag?'📈 시장데이터 ✓':'📈 태그SU 업로드'}</span><input type="file" id="tagUp" accept=".xlsx,.xls" style="display:none" onchange="onTagUpload(this)"></div>`;
+  h+=`<div class="ctrl"><label class="tg"><input type="checkbox" id="pt" ${S.proj?"checked":""} onchange="S.proj=this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">예상실적 보정</span></label><div class="dv"></div><div class="cg"><span class="cl">병원</span><input type="number" class="ni" id="ce" value="${S.cpvE}" min="1" max="31"><span class="cl">일</span></div><div class="cg"><span class="cl">시장</span><input type="number" class="ni" id="me" value="${S.mktE}" min="1" max="31"><span class="cl">일</span></div><div class="dv"></div><div class="cg"><span class="cl">기준월</span><select class="ni" style="width:auto;padding:3px 6px;font-size:10px" onchange="S.baseMo=this.value;R()">${D.months.map(m=>`<option value="${m}" ${m===S.baseMo?"selected":""}>${fM(m)}</option>`).join("")}</select></div><div class="dv"></div><div class="cg"><span class="cl">MOM</span><input type="number" class="ni" id="momM" value="${S.momMonths}" min="2" max="${ms.length}" style="width:32px"><span class="cl">개월</span></div><div class="dv"></div><label class="tg"><input type="checkbox" id="trToggle" ${S.showTr?"checked":""} onchange="S.showTr=this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">번역 보기</span></label><div class="dv"></div><label class="tg"><input type="checkbox" ${S.showCPA?"checked":""} onchange="S.showCPA=this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">DB당비용</span></label><div class="dv"></div><span onclick="document.getElementById('tagUp').click()" style="font-size:10px;color:${D.tag?'#059669':'#dc2626'};cursor:pointer;font-weight:600">${D.tag?'📈 시장데이터 ✓':'📈 태그SU 업로드'}</span><input type="file" id="tagUp" accept=".xlsx,.xls" style="display:none" onchange="onTagUpload(this)"></div>`;
   h+=`<div class="tabs">${[["overview","종합"],["events","이벤트별"],["cpc","CPC"],["mom","MOM"]].map(([k,l])=>`<button class="tb ${S.tab===k?"a":""}" onclick="SS({tab:'${k}'})">${l}</button>`).join("")}</div>`;
   if(S.tab!=="cpc"){const cs=["ALL",...new Set(D.events.map(e=>e.l))];h+=`<div class="cf">${cs.map(c=>`<button class="cb ${co===c?"a":""}" onclick="SS({co:'${c}'})">${CL[c]||c}</button>`).join("")}</div>`;}
 
@@ -298,8 +298,8 @@ function rDash(){
   if(S.tab==="overview"){
     const cur=mTot(lm,co),prev=mTot(ms[S.P],co);
     const gV=prev.v?(cur.v-prev.v)/prev.v*100:0,gD=prev.d?(cur.d-prev.d)/prev.d*100:0,gCPA=prev.cpa?(cur.cpa-prev.cpa)/prev.cpa*100:0;
-    h+=`<div class="grid g5"><div class="card"><div class="kl">${fM(lm)} 조회수</div><div class="kv">${fN(cur.v)}</div><div class="kf">${bg(gV)} 전월비</div></div><div class="card"><div class="kl">총 DB</div><div class="kv">${fN(cur.d)}</div><div class="kf">${bg(gD)} 전월비</div></div><div class="card"><div class="kl">전환율</div><div class="kv">${fP(cur.r)}</div></div><div class="card"><div class="kl">DB당 투자비용</div><div class="kv" style="color:#0891b2">₩${fN(cur.cpa)}</div><div class="kf">${bgInv(gCPA)} ${cur.cpa<prev.cpa?"개선↓":"악화↑"}</div></div><div class="card"><div class="kl">총 광고비</div><div class="kv">₩${fN(cur.c)}</div></div></div>`;
-    h+=`<div class="grid g2" style="margin-bottom:14px"><div class="CC"><h3>📊 조회수 & DB</h3><div class="CH"><canvas id="c1"></canvas></div></div><div class="CC"><h3>💰 DB당 투자비용</h3><div class="CH"><canvas id="c2"></canvas></div></div></div>`;
+    h+=`<div class="grid ${S.showCPA?'g5':'g3'}"><div class="card"><div class="kl">${fM(lm)} 조회수</div><div class="kv">${fN(cur.v)}</div><div class="kf">${bg(gV)} 전월비</div></div><div class="card"><div class="kl">총 DB</div><div class="kv">${fN(cur.d)}</div><div class="kf">${bg(gD)} 전월비</div></div><div class="card"><div class="kl">전환율</div><div class="kv">${fP(cur.r)}</div></div>${S.showCPA?`<div class="card"><div class="kl">DB당 투자비용</div><div class="kv" style="color:#0891b2">₩${fN(cur.cpa)}</div><div class="kf">${bgInv(gCPA)} ${cur.cpa<prev.cpa?"개선↓":"악화↑"}</div></div><div class="card"><div class="kl">총 광고비</div><div class="kv">₩${fN(cur.c)}</div></div>`:""}</div>`;
+    h+=`<div class="grid ${S.showCPA?'g3':'g2'}" style="margin-bottom:14px"><div class="CC"><h3>📊 조회수 & DB</h3><div class="CH"><canvas id="c1"></canvas></div></div>${S.showCPA?`<div class="CC"><h3>💰 DB당 투자비용</h3><div class="CH"><canvas id="c2"></canvas></div></div>`:""}<div class="CC"><h3>🌏 국가별 DB 비중 (${fM(lm)})</h3><div class="CH"><canvas id="cPie"></canvas></div></div></div>`;
     // Diagnosis
     const diag=D.events.filter(e=>co==="ALL"||e.l===co).map(e=>{const c2=evT(e,lm),p2=evT(e,ms[S.P]);const cpvC=evCPV(e,lm),cpvP=evCPV(e,ms[S.P]);const dG=p2.d>0?(c2.d-p2.d)/p2.d*100:c2.d>0?999:0;const vG=cpvP.v>0?(cpvC.v-cpvP.v)/cpvP.v*100:0;const curR=cpvC.v>0?c2.d/cpvC.v:0,prevR=cpvP.v>0?p2.d/cpvP.v:0;const rG=prevR>0?(curR-prevR)/prevR*100:0;let cause="";if(Math.abs(dG)<5)cause="안정";else if(dG>0)cause=vG>rG?"조회수↑":"전환율↑";else cause=vG<rG?"조회수↓":"전환율↓";return{...e,cur:c2,prev:p2,dG,cause};}).filter(e=>e.cur.d>0||e.dG!==0);
     const rising=diag.filter(e=>e.dG>5).sort((a,b)=>b.dG-a.dG),falling=diag.filter(e=>e.dG<-5).sort((a,b)=>a.dG-b.dG);
@@ -371,7 +371,7 @@ function rDash(){
       h+=`<span style="font-size:8px;padding:1px 5px;border-radius:3px;margin-right:3px;font-weight:600;${ev.op==="S"?"background:#fef2f2;color:#dc2626":"background:#ecfdf5;color:#059669"}">${ev.op==="S"?"🔪수술":"💉시술"}</span>`;
       h+=`<span style="font-size:13px;font-weight:700">${esc(ev.n.length>38?ev.n.slice(0,38)+"…":ev.n)}</span>`;
       if(!isKR&&trText&&S.showTr)h+=`<span style="font-size:10px;color:#6366f1;margin-left:6px">→ ${esc(trText)}</span>`;
-      h+=`</div><div style="text-align:right"><div style="font-size:17px;font-weight:800;color:#0891b2;font-family:'JetBrains Mono'">₩${fN(ev.cur.cpa)}</div><div style="font-size:8px;color:#9ca3af">DB당 투자비용</div></div></div>`;
+      h+=`</div>${S.showCPA?`<div style="text-align:right"><div style="font-size:17px;font-weight:800;color:#0891b2;font-family:'JetBrains Mono'">₩${fN(ev.cur.cpa)}</div><div style="font-size:8px;color:#9ca3af">DB당 투자비용</div></div>`:""}</div>`;
       // Metrics with last month highlight
       h+=`<div class="metrics">`;
       l3.forEach((m,mi)=>{const t=evT(ev,m);const isLast=m===lm;
@@ -432,9 +432,9 @@ function rDash(){
     const msUpToBase=ms.filter(m=>m<=S.lm);
     const momMs=msUpToBase.slice(-S.momMonths);
     const hlIdx=momMs.indexOf(S.lm);const mL=hlIdx>=0?hlIdx:momMs.length-1;const mP=mL-1;
-    const tots=momMs.map(m=>mTot(m,co));
-    const cpvTots=momMs.map(m=>cpvMTot(m,co));
-    const cpcTots=momMs.map(m=>cpcMT(m,co));
+    const tots=momMs.map(m=>mTot(m,"ALL"));
+    const cpvTots=momMs.map(m=>cpvMTot(m,"ALL"));
+    const cpcTots=momMs.map(m=>cpcMT(m,"ALL"));
     h+=`<div class="st2">MOM 변화 <span style="font-size:11px;color:#9ca3af;font-weight:400">최근 ${S.momMonths}개월</span></div>`;
     function momT(title,rows,detailId,detailRows){
       let t=`<div class="mom"><h4>${title}</h4><table class="MT"><thead><tr><th>구분</th>`;
@@ -449,35 +449,27 @@ function rDash(){
       }
       return t+`</tbody></table></div>`;
     }
-    h+=momT("📊 전체",[["조회수",tots.map(t=>t.v),fN],["총 DB",tots.map(t=>t.d),fN],["전환율",tots.map(t=>t.r),fP],["총 광고비",tots.map(t=>t.c),v=>"₩"+fN(v)],["DB당 투자비용",tots.map(t=>t.cpa),v=>"₩"+fN(v),1]],"total",[
-      ["└ CPV DB당비용",cpvTots.map(t=>t.cpa),v=>"₩"+fN(v),1],
-      ["└ CPC DB당비용",cpcTots.map(t=>t.cpa),v=>v>0?"₩"+fN(v):"-",1],
-      ["└ CPV 광고비",cpvTots.map(t=>t.c),v=>"₩"+fN(v)],
-      ["└ CPC 광고비",cpcTots.map(t=>t.tc),v=>"₩"+fN(v)],
-      ["└ CPV DB",cpvTots.map(t=>t.d),fN],
-      ["└ CPC DB",cpcTots.map(t=>t.cn),fN],
-    ]);
+    const baseRows=[["조회수",tots.map(t=>t.v),fN],["총 DB",tots.map(t=>t.d),fN],["전환율",tots.map(t=>t.r),fP]];
+    if(S.showCPA){baseRows.push(["총 광고비",tots.map(t=>t.c),v=>"₩"+fN(v)]);baseRows.push(["DB당 투자비용",tots.map(t=>t.cpa),v=>"₩"+fN(v),1]);}
+    const detailRows=S.showCPA?[["└ CPV DB당비용",cpvTots.map(t=>t.cpa),v=>"₩"+fN(v),1],["└ CPC DB당비용",cpcTots.map(t=>t.cpa),v=>v>0?"₩"+fN(v):"-",1],["└ CPV 광고비",cpvTots.map(t=>t.c),v=>"₩"+fN(v)],["└ CPC 광고비",cpcTots.map(t=>t.tc),v=>"₩"+fN(v)],["└ CPV DB",cpvTots.map(t=>t.d),fN],["└ CPC DB",cpcTots.map(t=>t.cn),fN]]:null;
+    h+=momT("📊 전체",baseRows,detailRows?"total":null,detailRows);
     [...new Set(D.events.map(e=>e.l))].forEach(c=>{const cts=momMs.map(m=>mTot(m,c));if(cts.every(t=>t.d===0))return;
       const cpvC=momMs.map(m=>cpvMTot(m,c));
       const cpcC=momMs.map(m=>cpcMT(m,c));
-      h+=momT(`<span class="fl fl-${c}">${FL[c]||""}</span> ${CL[c]||c}`,[["조회수",cts.map(t=>t.v),fN],["DB",cts.map(t=>t.d),fN],["광고비",cts.map(t=>t.c),v=>"₩"+fN(v)],["DB당비용",cts.map(t=>t.cpa),v=>"₩"+fN(v),1]],"country_"+c,[
-        ["└ CPV DB당비용",cpvC.map(t=>t.cpa),v=>"₩"+fN(v),1],
-        ["└ CPC DB당비용",cpcC.map(t=>t.cpa),v=>v>0?"₩"+fN(v):"-",1],
-        ["└ CPV 광고비",cpvC.map(t=>t.c),v=>"₩"+fN(v)],
-        ["└ CPC 광고비",cpcC.map(t=>t.tc),v=>"₩"+fN(v)],
-        ["└ CPV DB",cpvC.map(t=>t.d),fN],
-        ["└ CPC DB",cpcC.map(t=>t.cn),fN],
-      ]);});
+      const cRows=[["조회수",cts.map(t=>t.v),fN],["DB",cts.map(t=>t.d),fN]];
+      if(S.showCPA){cRows.push(["광고비",cts.map(t=>t.c),v=>"₩"+fN(v)]);cRows.push(["DB당비용",cts.map(t=>t.cpa),v=>"₩"+fN(v),1]);}
+      const cDetail=S.showCPA?[["└ CPV DB당비용",cpvC.map(t=>t.cpa),v=>"₩"+fN(v),1],["└ CPC DB당비용",cpcC.map(t=>t.cpa),v=>v>0?"₩"+fN(v):"-",1],["└ CPV 광고비",cpvC.map(t=>t.c),v=>"₩"+fN(v)],["└ CPC 광고비",cpcC.map(t=>t.tc),v=>"₩"+fN(v)],["└ CPV DB",cpvC.map(t=>t.d),fN],["└ CPC DB",cpcC.map(t=>t.cn),fN]]:null;
+      h+=momT(`<span class="fl fl-${c}">${FL[c]||""}</span> ${CL[c]||c}`,cRows,cDetail?"country_"+c:null,cDetail);});
     h+=`<div class="st2">이벤트별 MOM (상위 10)</div>`;
     D.events.slice().sort((a,b)=>momMs.reduce((s,m)=>(b.m[m]?b.m[m][1]:0)+s,0)-momMs.reduce((s,m)=>(a.m[m]?a.m[m][1]:0)+s,0)).slice(0,10).forEach((ev,i)=>{
       const ets=momMs.map(m=>evT(ev,m)),tr=autoTr(ev.n);
       const cpvEts=momMs.map(m=>evCPV(ev,m)),cpcEts=momMs.map(m=>evCPC(ev.n,m));
       let title=`<span class="fl fl-${ev.l}">${FL[ev.l]||""}</span> ${esc(ev.n.slice(0,40))}`;
       if(ev.l!=="KR"&&tr&&S.showTr)title+=` <span style="font-size:10px;color:#6366f1">(${esc(tr)})</span>`;
-      h+=momT(title,[["조회수",ets.map(t=>t.v),fN],["DB",ets.map(t=>t.d),fN],["광고비",ets.map(t=>t.c),v=>"₩"+fN(v)],["DB당비용",ets.map(t=>t.cpa),v=>"₩"+fN(v),1]],"ev_"+i,[
-        ["└ CPV DB당비용",cpvEts.map(t=>t.d>0?t.c/t.d:0),v=>v>0?"₩"+fN(v):"-",1],
-        ["└ CPC DB당비용",cpcEts.map(t=>t.cn>0?t.tc/t.cn:0),v=>v>0?"₩"+fN(v):"-",1],
-      ]);});
+      const evRows=[["조회수",ets.map(t=>t.v),fN],["DB",ets.map(t=>t.d),fN]];
+      if(S.showCPA){evRows.push(["광고비",ets.map(t=>t.c),v=>"₩"+fN(v)]);evRows.push(["DB당비용",ets.map(t=>t.cpa),v=>"₩"+fN(v),1]);}
+      const evDetail=S.showCPA?[["└ CPV DB당비용",cpvEts.map(t=>t.d>0?t.c/t.d:0),v=>v>0?"₩"+fN(v):"-",1],["└ CPC DB당비용",cpcEts.map(t=>t.cn>0?t.tc/t.cn:0),v=>v>0?"₩"+fN(v):"-",1]]:null;
+      h+=momT(title,evRows,evDetail?"ev_"+i:null,evDetail);});
   }
 
   h+=`<div class="footer"><p>DB=CPV전환+CPC전환 · DB당투자비용=(CPV비용+CPC비용)÷총DB · 💾 자동 저장</p></div>`;
@@ -500,7 +492,16 @@ function rCh(){
   const c2=document.getElementById("c2");
   if(c2){const tots=ms.map(m=>mTot(m,co)),cpas=tots.map(t=>t.cpa).filter(v=>v>0);const mn=cpas.length?Math.min(...cpas)*.85:0,mx=cpas.length?Math.max(...cpas)*1.1:1;
     S.ch.c2=new Chart(c2.getContext("2d"),{type:"line",data:{labels:lbs,datasets:[{label:"DB당 투자비용",data:tots.map(t=>t.cpa),borderColor:"#0891b2",backgroundColor:"rgba(8,145,178,.06)",borderWidth:3,pointRadius:5,pointBackgroundColor:"#0891b2",pointBorderColor:"#fff",pointBorderWidth:2,fill:true,tension:.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...sty.tt,callbacks:{label:c=>"₩"+fN(c.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:10}}},y:{grid:sty.grid,ticks:{...sty.tick,callback:v=>"₩"+fN(v)},min:Math.floor(mn/1000)*1000,max:Math.ceil(mx/1000)*1000}}}});}
-  // Detail charts
+  // Country pie chart
+  const cPie=document.getElementById("cPie");
+  if(cPie){
+    const PIE_COLORS={"KR":"#6366f1","JP":"#f59e0b","EN":"#10b981","TW":"#ec4899","TH":"#f97316","CN":"#ef4444"};
+    const countries=[...new Set(D.events.map(e=>e.l))];
+    const countryDB=countries.map(c=>{let d=0;D.events.forEach(ev=>{if(ev.l===c)d+=evT(ev,lm).d;});return{c,d};}).filter(x=>x.d>0).sort((a,b)=>b.d-a.d);
+    S.ch.cPie=new Chart(cPie.getContext("2d"),{type:"doughnut",data:{
+      labels:countryDB.map(x=>(CL[x.c]||x.c)+" "+fN(x.d)+"건"),
+      datasets:[{data:countryDB.map(x=>x.d),backgroundColor:countryDB.map(x=>(PIE_COLORS[x.c]||"#9ca3af")+"80"),borderColor:countryDB.map(x=>PIE_COLORS[x.c]||"#9ca3af"),borderWidth:2}]
+    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"right",labels:{color:"#374151",font:{size:10},boxWidth:12,padding:8}},tooltip:{...sty.tt,callbacks:{label:c=>{const total=countryDB.reduce((s,x)=>s+x.d,0);return c.label+` (${(c.raw/total*100).toFixed(1)}%)`;}}}}}}); }  // Detail charts
   if(S.exp.size>0&&S.tab==="events"){
     // Find all expanded canvases by scanning DOM
     document.querySelectorAll('canvas[id^="dc_"]').forEach(cv=>{
