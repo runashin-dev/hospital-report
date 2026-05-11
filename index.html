@@ -307,23 +307,26 @@ function rDash(){
     const yoyMonth=S.ms.find(m=>{const[y,mo]=m.split("-");return(+y-1)+"-"+mo===ms.find(pm=>pm===(+y-1)+"-"+mo);});
     // Find YoY pairs: for each recent month, find same month last year
     const recentMs=ms.slice(-4);
-    h+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="st2" style="margin:0">📊 성과 요약</div><div class="cf" style="margin:0">${["mom:전월비","yoy:전년비"].map(s=>{const[k,l]=s.split(":");return`<button class="cb ${(S.kpiMode||"mom")===k?"a":""}" onclick="SS({kpiMode:'${k}'})">${l}</button>`;}).join("")}</div></div>`;
+    h+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="st2" style="margin:0">📊 성과 요약</div><div class="cf" style="margin:0">${["mom:전월비","yoy:전년비","both:전월+전년"].map(s=>{const[k,l]=s.split(":");return`<button class="cb ${(S.kpiMode||"mom")===k?"a":""}" onclick="SS({kpiMode:'${k}'})">${l}</button>`;}).join("")}</div></div>`;
     h+=`<div class="grid g4" style="margin-bottom:14px">`;
     recentMs.forEach(m=>{
       const t=mTot(m,"ALL");
-      let cmpLabel="",gV="",gD="";
-      if((S.kpiMode||"mom")==="yoy"){
-        const[y,mo]=m.split("-");const yoyM=(+y-1)+"-"+mo;const pt=mTot(yoyM,"ALL");
-        cmpLabel="전년 동월비";
-        gV=pt.v?bg((t.v-pt.v)/pt.v*100):"";
-        gD=pt.d?bg((t.d-pt.d)/pt.d*100):"";
-      }else{
-        const mi=ms.indexOf(m);const prevM=mi>0?ms[mi-1]:null;const pt=prevM?mTot(prevM,"ALL"):{v:0,d:0};
-        cmpLabel="전월비";
-        gV=pt.v?bg((t.v-pt.v)/pt.v*100):"";
-        gD=pt.d?bg((t.d-pt.d)/pt.d*100):"";
-      }
-      h+=`<div class="card ${m===lm?'style="border:2px solid #6366f1"':''}"><div class="kl">${fM(m)} OV</div><div class="kv">${fN(t.v)}</div><div class="kf">${gV} ${cmpLabel}</div><div style="margin-top:4px;font-size:10px;color:#6b7280">DB <strong style="font-family:'JetBrains Mono'">${fN(t.d)}</strong>명 ${gD}</div><div style="font-size:9px;color:#9ca3af">CVR ${fP(t.r)}</div></div>`;
+      const mi=ms.indexOf(m);const prevM=mi>0?ms[mi-1]:null;const momT2=prevM?mTot(prevM,"ALL"):{v:0,d:0};
+      const[y,mo]=m.split("-");const yoyM=(+y-1)+"-"+mo;const yoyT=mTot(yoyM,"ALL");
+      const momV=momT2.v?bg((t.v-momT2.v)/momT2.v*100):"";
+      const momD=momT2.d?bg((t.d-momT2.d)/momT2.d*100):"";
+      const yoyV=yoyT.v?bg((t.v-yoyT.v)/yoyT.v*100):"";
+      const yoyD=yoyT.d?bg((t.d-yoyT.d)/yoyT.d*100):"";
+      const mode=S.kpiMode||"mom";
+      h+=`<div class="card ${m===lm?'style="border:2px solid #6366f1"':''}"><div class="kl">${fM(m)} OV</div><div class="kv">${fN(t.v)}</div>`;
+      if(mode==="mom")h+=`<div class="kf">${momV} 전월비</div>`;
+      else if(mode==="yoy")h+=`<div class="kf">${yoyV} 전년비</div>`;
+      else h+=`<div class="kf">${momV} 전월 ${yoyV} 전년</div>`;
+      h+=`<div style="margin-top:4px;font-size:10px;color:#6b7280">DB <strong style="font-family:'JetBrains Mono'">${fN(t.d)}</strong>명 `;
+      if(mode==="mom")h+=momD;
+      else if(mode==="yoy")h+=yoyD;
+      else h+=`${momD} <span style="font-size:8px;color:#9ca3af">MoM</span> ${yoyD} <span style="font-size:8px;color:#9ca3af">YoY</span>`;
+      h+=`</div><div style="font-size:9px;color:#9ca3af">CVR ${fP(t.r)}</div></div>`;
     });
     h+=`</div>`;
 
