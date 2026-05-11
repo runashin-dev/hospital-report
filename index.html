@@ -311,22 +311,16 @@ function rDash(){
     h+=`<div class="grid g4" style="margin-bottom:14px">`;
     recentMs.forEach(m=>{
       const t=mTot(m,"ALL");
-      const mi=ms.indexOf(m);const prevM=mi>0?ms[mi-1]:null;const momT2=prevM?mTot(prevM,"ALL"):{v:0,d:0};
+      const mi=ms.indexOf(m);const prevM=mi>0?ms[mi-1]:null;const momT2=prevM?mTot(prevM,"ALL"):{d:0};
       const[y,mo]=m.split("-");const yoyM=(+y-1)+"-"+mo;const yoyT=mTot(yoyM,"ALL");
-      const momV=momT2.v?bg((t.v-momT2.v)/momT2.v*100):"";
       const momD=momT2.d?bg((t.d-momT2.d)/momT2.d*100):"";
-      const yoyV=yoyT.v?bg((t.v-yoyT.v)/yoyT.v*100):"";
       const yoyD=yoyT.d?bg((t.d-yoyT.d)/yoyT.d*100):"";
       const mode=S.kpiMode||"mom";
-      h+=`<div class="card ${m===lm?'style="border:2px solid #6366f1"':''}"><div class="kl">${fM(m)} OV</div><div class="kv">${fN(t.v)}</div>`;
-      if(mode==="mom")h+=`<div class="kf">${momV} 전월비</div>`;
-      else if(mode==="yoy")h+=`<div class="kf">${yoyV} 전년비</div>`;
-      else h+=`<div class="kf">${momV} 전월 ${yoyV} 전년</div>`;
-      h+=`<div style="margin-top:4px;font-size:10px;color:#6b7280">DB <strong style="font-family:'JetBrains Mono'">${fN(t.d)}</strong>명 `;
-      if(mode==="mom")h+=momD;
-      else if(mode==="yoy")h+=yoyD;
-      else h+=`${momD} <span style="font-size:8px;color:#9ca3af">MoM</span> ${yoyD} <span style="font-size:8px;color:#9ca3af">YoY</span>`;
-      h+=`</div><div style="font-size:9px;color:#9ca3af">CVR ${fP(t.r)}</div></div>`;
+      h+=`<div class="card" ${m===lm?'style="border:2px solid #6366f1"':''}><div class="kl">${fM(m)} DB</div><div style="font-size:28px;font-weight:900;font-family:'JetBrains Mono';letter-spacing:-1px;margin:4px 0">${fN(t.d)}<span style="font-size:13px;color:#9ca3af;font-weight:500">명</span></div>`;
+      if(mode==="mom")h+=`<div class="kf" style="font-size:11px">${momD} 전월비</div>`;
+      else if(mode==="yoy")h+=`<div class="kf" style="font-size:11px">${yoyD} 전년비</div>`;
+      else h+=`<div class="kf" style="font-size:11px">${momD} <span style="color:#9ca3af">전월</span> ${yoyD} <span style="color:#9ca3af">전년</span></div>`;
+      h+=`<div style="font-size:10px;color:#9ca3af;margin-top:3px">조회 ${fN(t.v)} · CVR ${fP(t.r)}</div></div>`;
     });
     h+=`</div>`;
 
@@ -416,7 +410,7 @@ function rDash(){
       // ===== EXPANDED DETAIL =====
       if(S.exp.has(eid)){
         h+=`<div class="DP"><div class="grid g2" style="margin-bottom:8px">
-        <div><div style="font-size:10px;color:#6b7280;font-weight:600;margin-bottom:4px">DB & DB당비용 추이</div><div style="height:140px"><canvas id="dc_${ei}" data-eid="${eid}"></canvas></div></div>
+        <div><div style="font-size:10px;color:#6b7280;font-weight:600;margin-bottom:4px">DB & 전환율 추이</div><div style="height:140px"><canvas id="dc_${ei}" data-eid="${eid}"></canvas></div></div>
         <div><div style="font-size:10px;color:#6b7280;font-weight:600;margin-bottom:4px">월별 상세</div><div style="overflow-x:auto">
         <table class="MT"><thead><tr><th>월</th><th>조회수</th><th>DB</th><th>전환율</th><th>비용</th></tr></thead><tbody>`;
         ms.forEach(m=>{const t=evT(ev,m);const isL=m===lm;h+=`<tr><td${isL?' class="hl"':""}>${fM(m)}</td><td${isL?' class="hl"':""}>${fN(t.v)}</td><td${isL?' class="hl"':""}>${fN(t.d)}${t.cpcD>0?` <span style="font-size:9px;color:#6366f1">(CPC ${t.cpcD})</span>`:""}</td><td${isL?' class="hl"':""}>${fP(t.r)}</td><td${isL?' class="hl"':""}>₩${fN(t.c)}</td></tr>`;});
@@ -556,14 +550,14 @@ function rCh(){
       const ev=D.events.find(e=>btoa(unescape(encodeURIComponent(e.n)))===eid);
       if(!ev)return;
       cv.dataset.rendered="1";
-      const dbs=ms.map(m=>evT(ev,m).d),cpas=ms.map(m=>evT(ev,m).cpa).filter(v=>v>0);
-      const mn=cpas.length?Math.min(...cpas)*.8:0;
+      const dbs=ms.map(m=>evT(ev,m).d);
+      const cvrs=ms.map(m=>{const t=evT(ev,m);return t.v>0?(t.d/t.v*100):null;});
       S.ch["d"+ei]=new Chart(cv.getContext("2d"),{type:"bar",data:{labels:lbs,datasets:[
         {label:"DB",data:dbs,backgroundColor:"rgba(16,185,129,.2)",borderColor:"#059669",borderWidth:1,borderRadius:3,yAxisID:"y"},
-        {label:"DB당비용",data:ms.map(m=>evT(ev,m).cpa),type:"line",borderColor:"#0891b2",borderWidth:2,pointRadius:3,pointBackgroundColor:"#0891b2",yAxisID:"y1",tension:.3}
-      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:"#6b7280",font:{size:8},boxWidth:6}},tooltip:sty.tt},scales:{
+        {label:"전환율(%)",data:cvrs,type:"line",borderColor:"#6366f1",borderWidth:2,borderDash:[5,3],pointRadius:3,pointBackgroundColor:"#6366f1",yAxisID:"y1",tension:.3,spanGaps:true}
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:"#6b7280",font:{size:8},boxWidth:6}},tooltip:{...sty.tt,callbacks:{label:c=>c.datasetIndex===0?fN(c.raw)+"건":c.raw?.toFixed(1)+"%"}}},scales:{
         x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:9}}},y:{position:"left",grid:sty.grid,ticks:{...sty.tick}},
-        y1:{position:"right",grid:{drawOnChartArea:false},ticks:{...sty.tick,callback:v=>"₩"+fN(v)},min:mn>0?Math.floor(mn/1000)*1000:0}}}});
+        y1:{position:"right",grid:{drawOnChartArea:false},ticks:{...sty.tick,callback:v=>v.toFixed(1)+"%"}}}});
     });
   }
   // CPC charts
