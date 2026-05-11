@@ -298,69 +298,98 @@ function rDash(){
   if(S.tab==="overview"){
     const cur=mTot(lm,co),prev=mTot(ms[S.P],co);
     const gV=prev.v?(cur.v-prev.v)/prev.v*100:0,gD=prev.d?(cur.d-prev.d)/prev.d*100:0,gCPA=prev.cpa?(cur.cpa-prev.cpa)/prev.cpa*100:0;
-    h+=`<div class="grid ${S.showCPA?'g5':'g3'}"><div class="card"><div class="kl">${fM(lm)} 조회수</div><div class="kv">${fN(cur.v)}</div><div class="kf">${bg(gV)} 전월비</div></div><div class="card"><div class="kl">총 DB</div><div class="kv">${fN(cur.d)}</div><div class="kf">${bg(gD)} 전월비</div></div><div class="card"><div class="kl">전환율</div><div class="kv">${fP(cur.r)}</div></div>${S.showCPA?`<div class="card"><div class="kl">DB당 투자비용</div><div class="kv" style="color:#0891b2">₩${fN(cur.cpa)}</div><div class="kf">${bgInv(gCPA)} ${cur.cpa<prev.cpa?"개선↓":"악화↑"}</div></div><div class="card"><div class="kl">총 광고비</div><div class="kv">₩${fN(cur.c)}</div></div>`:""}</div>`;
-    h+=`<div class="grid ${S.showCPA?'g3':'g2'}" style="margin-bottom:14px"><div class="CC"><h3>📊 조회수 & DB</h3><div class="CH"><canvas id="c1"></canvas></div></div>${S.showCPA?`<div class="CC"><h3>💰 DB당 투자비용</h3><div class="CH"><canvas id="c2"></canvas></div></div>`:""}<div class="CC"><h3>🌏 국가별 DB 비중 (${fM(lm)})</h3><div class="CH"><canvas id="cPie"></canvas></div></div></div>`;
+    h+=`<div class="grid g4"><div class="card"><div class="kl">${fM(lm)} 조회수</div><div class="kv">${fN(cur.v)}</div><div class="kf">${bg(gV)} 전월비</div></div><div class="card"><div class="kl">총 DB</div><div class="kv">${fN(cur.d)}</div><div class="kf">${bg(gD)} 전월비</div></div><div class="card"><div class="kl">전환율</div><div class="kv">${fP(cur.r)}</div><div class="kf">${prev.r?bg((cur.r-prev.r)/prev.r*100):""} 전월비</div></div>${S.showCPA?`<div class="card"><div class="kl">DB당 투자비용</div><div class="kv" style="color:#0891b2">₩${fN(cur.cpa)}</div><div class="kf">${bgInv(gCPA)} ${cur.cpa<prev.cpa?"개선↓":"악화↑"}</div></div>`:`<div class="card"><div class="kl">총 광고비</div><div class="kv">₩${fN(cur.c)}</div><div class="kf">${prev.c?bg((cur.c-prev.c)/prev.c*100):""} 전월비</div></div>`}</div>`;
+    // Charts and diagnosis moved to new section below KPI cards
     // Diagnosis
     const diag=D.events.filter(e=>co==="ALL"||e.l===co).map(e=>{const c2=evT(e,lm),p2=evT(e,ms[S.P]);const cpvC=evCPV(e,lm),cpvP=evCPV(e,ms[S.P]);const dG=p2.d>0?(c2.d-p2.d)/p2.d*100:c2.d>0?999:0;const vG=cpvP.v>0?(cpvC.v-cpvP.v)/cpvP.v*100:0;const curR=cpvC.v>0?c2.d/cpvC.v:0,prevR=cpvP.v>0?p2.d/cpvP.v:0;const rG=prevR>0?(curR-prevR)/prevR*100:0;let cause="";if(Math.abs(dG)<5)cause="안정";else if(dG>0)cause=vG>rG?"조회수↑":"전환율↑";else cause=vG<rG?"조회수↓":"전환율↓";return{...e,cur:c2,prev:p2,dG,cause};}).filter(e=>e.cur.d>0||e.dG!==0);
     const rising=diag.filter(e=>e.dG>5).sort((a,b)=>b.dG-a.dG),falling=diag.filter(e=>e.dG<-5).sort((a,b)=>a.dG-b.dG);
-    h+=`<div class="st2">📋 이벤트 성과 진단</div><div class="grid g2">`;
-    [["📈 상승","#059669",rising],["📉 하락","#dc2626",falling]].forEach(([label,color,list])=>{
-      h+=`<div class="card" style="border-left:3px solid ${color}"><div style="font-size:13px;font-weight:700;color:${color};margin-bottom:8px">${label} (${list.length}개)</div>`;
-      list.slice(0,6).forEach(ev=>{const cc=ev.cause.includes("조회수")?"#6366f1":"#0891b2";const prevM=fM(ms[S.P]),curM=fM(lm);const isKR=ev.l==="KR",tr=isKR?"":autoTr(ev.n);h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f3f4f6"><div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600"><span class="fl fl-${ev.l}">${FL[ev.l]||""}</span>${esc(ev.n.slice(0,25))}${!isKR&&tr&&S.showTr?` <span style="font-size:9px;color:#6366f1">→ ${esc(tr)}</span>`:""}</div><div style="font-size:10px;color:#9ca3af;font-family:'JetBrains Mono';margin-top:1px">${prevM} <strong>${fN(ev.prev.d)}</strong> → ${curM} <strong style="color:${color}">${fN(ev.cur.d)}</strong></div></div><div style="display:flex;gap:6px;align-items:center;flex-shrink:0"><span style="font-size:11px;font-weight:700;color:${color};font-family:'JetBrains Mono'">${fG(ev.dG)}</span><span style="font-size:9px;padding:1px 5px;border-radius:4px;background:${cc}11;color:${cc};font-weight:600">${ev.cause}</span></div></div>`;});
-      if(!list.length)h+=`<div style="color:#9ca3af;font-size:11px">없음</div>`;
-      h+=`</div>`;});
+    // ===== YoY / MoM KPI cards =====
+    const yoyMonth=S.ms.find(m=>{const[y,mo]=m.split("-");return(+y-1)+"-"+mo===ms.find(pm=>pm===(+y-1)+"-"+mo);});
+    // Find YoY pairs: for each recent month, find same month last year
+    const recentMs=ms.slice(-4);
+    h+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="st2" style="margin:0">📊 성과 요약</div><div class="cf" style="margin:0">${["mom:전월비","yoy:전년비"].map(s=>{const[k,l]=s.split(":");return`<button class="cb ${(S.kpiMode||"mom")===k?"a":""}" onclick="SS({kpiMode:'${k}'})">${l}</button>`;}).join("")}</div></div>`;
+    h+=`<div class="grid g4" style="margin-bottom:14px">`;
+    recentMs.forEach(m=>{
+      const t=mTot(m,"ALL");
+      let cmpLabel="",gV="",gD="";
+      if((S.kpiMode||"mom")==="yoy"){
+        const[y,mo]=m.split("-");const yoyM=(+y-1)+"-"+mo;const pt=mTot(yoyM,"ALL");
+        cmpLabel="전년 동월비";
+        gV=pt.v?bg((t.v-pt.v)/pt.v*100):"";
+        gD=pt.d?bg((t.d-pt.d)/pt.d*100):"";
+      }else{
+        const mi=ms.indexOf(m);const prevM=mi>0?ms[mi-1]:null;const pt=prevM?mTot(prevM,"ALL"):{v:0,d:0};
+        cmpLabel="전월비";
+        gV=pt.v?bg((t.v-pt.v)/pt.v*100):"";
+        gD=pt.d?bg((t.d-pt.d)/pt.d*100):"";
+      }
+      h+=`<div class="card ${m===lm?'style="border:2px solid #6366f1"':''}"><div class="kl">${fM(m)} OV</div><div class="kv">${fN(t.v)}</div><div class="kf">${gV} ${cmpLabel}</div><div style="margin-top:4px;font-size:10px;color:#6b7280">DB <strong style="font-family:'JetBrains Mono'">${fN(t.d)}</strong>명 ${gD}</div><div style="font-size:9px;color:#9ca3af">CVR ${fP(t.r)}</div></div>`;
+    });
     h+=`</div>`;
+
+    // ===== 국가별 DB 비중 =====
+    const countries=[...new Set(D.events.map(e=>e.l))];
+    if(countries.length>1){
+      const countryDB=countries.map(c=>{let d=0;D.events.forEach(ev=>{if(ev.l===c)d+=evT(ev,lm).d;});return{c,d};}).filter(x=>x.d>0).sort((a,b)=>b.d-a.d);
+      const totalDB=countryDB.reduce((s,x)=>s+x.d,0);
+      h+=`<div class="CC" style="margin-bottom:14px"><h3>🌏 국가별 DB 비중 (${fM(lm)})</h3><div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px;height:180px"><canvas id="cPie"></canvas></div>
+      <div style="flex:1;min-width:200px">`;
+      countryDB.forEach(x=>{const pct=(x.d/totalDB*100).toFixed(1);
+        h+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f9fafb"><span class="fl fl-${x.c}" style="font-size:9px">${FL[x.c]||""} ${CL[x.c]||x.c}</span><div style="flex:1;height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${({"KR":"#6366f1","JP":"#f59e0b","EN":"#10b981","TW":"#ec4899","TH":"#f97316","CN":"#ef4444"})[x.c]||"#9ca3af"};border-radius:4px"></div></div><span style="font-size:11px;font-weight:700;font-family:'JetBrains Mono';min-width:60px;text-align:right">${fN(x.d)}명</span><span style="font-size:10px;color:#6b7280;min-width:40px;text-align:right">${pct}%</span></div>`;});
+      h+=`</div></div></div>`;
+    }
+
+    h+=`<div class="grid g2" style="margin-bottom:14px"><div class="CC"><h3>📊 월별 조회수 & DB</h3><div class="CH"><canvas id="c1"></canvas></div></div>${S.showCPA?`<div class="CC"><h3>💰 DB당 투자비용 추이</h3><div class="CH"><canvas id="c2"></canvas></div></div>`:`<div class="CC"><h3>📈 월별 전환율 추이</h3><div class="CH"><canvas id="cCvr"></canvas></div></div>`}</div>`;
+
+    // ===== 성장·신규 이벤트 / 점검 필요 이벤트 =====
+    h+=`<div class="grid g2">`;
+    // Growth / New
+    const growthEvs=diag.filter(e=>e.dG>0||e.prev.d===0&&e.cur.d>0).sort((a,b)=>{
+      if(a.prev.d===0&&a.cur.d>0&&!(b.prev.d===0&&b.cur.d>0))return -1;
+      if(b.prev.d===0&&b.cur.d>0&&!(a.prev.d===0&&a.cur.d>0))return 1;
+      return(b.cur.d-b.prev.d)-(a.cur.d-a.prev.d);
+    });
+    const alertEvs=diag.filter(e=>e.dG<0&&e.prev.d>0).sort((a,b)=>(a.cur.d-a.prev.d)-(b.cur.d-b.prev.d));
+
+    h+=`<div class="card" style="border-left:3px solid #059669"><div style="font-size:13px;font-weight:700;color:#059669;margin-bottom:8px">📈 성장·신규 이벤트</div>`;
+    growthEvs.slice(0,6).forEach(ev=>{
+      const isNew=ev.prev.d===0&&ev.cur.d>0;
+      const diff=ev.cur.d-ev.prev.d;
+      const isKR=ev.l==="KR",tr=isKR?"":autoTr(ev.n);
+      h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f3f4f6">
+        <div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600">${esc(ev.n.slice(0,28))}${!isKR&&tr&&S.showTr?` <span style="font-size:9px;color:#6366f1">→${esc(tr.slice(0,12))}</span>`:""}</div></div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <span style="font-size:10px;color:#9ca3af;font-family:'JetBrains Mono'">${fM(lm)} DB ${fN(ev.cur.d)}명 · CVR ${fP(ev.cur.r)}</span>
+          ${isNew?`<span style="font-size:9px;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#059669;font-weight:700">신규</span>`:`<span style="font-size:11px;font-weight:800;color:#059669;font-family:'JetBrains Mono'">+${fN(diff)}명</span>`}
+        </div></div>`;});
+    if(!growthEvs.length)h+=`<div style="color:#9ca3af;font-size:11px">없음</div>`;
+    h+=`</div>`;
+
+    // Alert
+    h+=`<div class="card" style="border-left:3px solid #dc2626"><div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:8px">📉 점검 필요 이벤트</div>`;
+    alertEvs.slice(0,6).forEach(ev=>{
+      const diff=ev.cur.d-ev.prev.d;
+      const isKR=ev.l==="KR",tr=isKR?"":autoTr(ev.n);
+      h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f3f4f6">
+        <div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:600">${esc(ev.n.slice(0,28))}${!isKR&&tr&&S.showTr?` <span style="font-size:9px;color:#6366f1">→${esc(tr.slice(0,12))}</span>`:""}</div></div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <span style="font-size:10px;color:#9ca3af;font-family:'JetBrains Mono'">${fN(ev.prev.d)}→${fN(ev.cur.d)}명 · CVR ${fP(ev.cur.r)}</span>
+          <span style="font-size:11px;font-weight:800;color:#dc2626;font-family:'JetBrains Mono'">${fN(diff)}명</span>
+        </div></div>`;});
+    if(!alertEvs.length)h+=`<div style="color:#9ca3af;font-size:11px">없음</div>`;
+    h+=`</div></div>`;
   }
 
-  // ===== EVENTS TAB (FULL) =====
+  // ===== EVENTS TAB =====
   if(S.tab==="events"){
     let evs=D.events.filter(e=>co==="ALL"||e.l===co).map(e=>{const cur=evT(e,lm),prev=evT(e,ms[S.P]);const op=getOpType(e.n);return{...e,cur,prev,dG:prev.d?(cur.d-prev.d)/prev.d*100:cur.d>0?null:0,op};});
-    // Apply operation type filter
     if(S.opFilter!=="ALL")evs=evs.filter(e=>e.op===S.opFilter);
     if(S.sort==="db")evs.sort((a,b)=>b.cur.d-a.cur.d);else if(S.sort==="cpa")evs.sort((a,b)=>(a.cur.cpa||9e9)-(b.cur.cpa||9e9));else if(S.sort==="growth")evs.sort((a,b)=>(b.dG||-999)-(a.dG||-999));
-    // Count by type
     const allEvs=D.events.filter(e=>co==="ALL"||e.l===co).map(e=>({op:getOpType(e.n)}));
     const sCount=allEvs.filter(e=>e.op==="S").length,nCount=allEvs.filter(e=>e.op==="N").length,uCount=allEvs.filter(e=>e.op==="?").length;
     h+=`<div class="st2">이벤트별 성과</div><div class="sub2">카드 클릭 → 상세</div>`;
-    h+=`<div class="cf"><button class="cb ${S.opFilter==="ALL"?"a":""}" onclick="SS({opFilter:'ALL'})">전체 (${allEvs.length})</button><button class="cb ${S.opFilter==="N"?"a":""}" onclick="SS({opFilter:'N'})" style="${S.opFilter==="N"?"":""}">💉 시술 (${nCount})</button><button class="cb ${S.opFilter==="S"?"a":""}" onclick="SS({opFilter:'S'})">🔪 수술 (${sCount})</button>${uCount?`<button class="cb ${S.opFilter==="?"?"a":""}" onclick="SS({opFilter:'?'})">❓ 미분류 (${uCount})</button>`:""}</div>`;
-
-    // ===== TOP5 / BOTTOM5 AI 코멘트 섹션 =====
-    const rankEvs=[...evs].filter(e=>e.cur.d>0).sort((a,b)=>b.cur.d-a.cur.d);
-    const top5=rankEvs.slice(0,5);
-    const bot5=[...rankEvs].sort((a,b)=>a.cur.d-b.cur.d).slice(0,5).reverse();
-    h+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;margin-bottom:6px">
-      <div class="st2" style="margin:0">🏆 TOP 5 / 🔻 하위 5 이벤트</div>
-      <button class="cb ${S.showComments?"a":""}" onclick="SS({showComments:${!S.showComments}})" style="font-size:10px;padding:4px 10px">
-        ${S.showComments?"💬 코멘트 ON":"💬 코멘트 OFF"}
-      </button>
-    </div>`;
-    h+=`<div class="rank-wrap" id="rankSection">`;
-    // Top5
-    h+=`<div class="rank-box top"><div class="rank-title">🏆 상위 TOP 5 <span style="font-size:9px;font-weight:400;color:#9ca3af">(최신월 DB 기준)</span></div>`;
-    top5.forEach((ev,i)=>{
-      const cvr=ev.cur.r?fP(ev.cur.r):"-";
-      const comment=makeTopComment(ev,rankEvs);
-      const isKR=ev.l==="KR",tr=isKR?"":autoTr(ev.n);
-      h+=`<div class="rank-item"><div class="rank-num">${i+1}</div><div class="rank-info">`;
-      h+=`<div class="rank-name"><span class="fl fl-${ev.l}">${FL[ev.l]||""} ${ev.l}</span> ${esc(ev.n.length>35?ev.n.slice(0,35)+"…":ev.n)}${!isKR&&tr&&S.showTr?` <span style="font-size:9px;color:#6366f1">→ ${esc(tr)}</span>`:""}</div>`;
-      h+=`<div class="rank-metrics">DB ${fN(ev.cur.d)} · 조회 ${fN(ev.cur.v)} · CVR ${cvr} · 성장 ${ev.dG!==null?fG(ev.dG):"-"}</div>`;
-      if(S.showComments) h+=`<div class="rank-comment"><span style="font-size:9px;color:#059669;font-weight:700">✓ 잘한 점</span><br>${esc(comment)}</div>`;
-      h+=`</div></div>`;
-    });
-    h+=`</div>`;
-    // Bottom5
-    h+=`<div class="rank-box bottom"><div class="rank-title">🔻 하위 5개 이벤트 <span style="font-size:9px;font-weight:400;color:#9ca3af">(최신월 DB 기준)</span></div>`;
-    bot5.forEach((ev,i)=>{
-      const cvr=ev.cur.r?fP(ev.cur.r):"-";
-      const comment=makeBotComment(ev,rankEvs);
-      const isKR=ev.l==="KR",tr=isKR?"":autoTr(ev.n);
-      h+=`<div class="rank-item"><div class="rank-num">${i+1}</div><div class="rank-info">`;
-      h+=`<div class="rank-name"><span class="fl fl-${ev.l}">${FL[ev.l]||""} ${ev.l}</span> ${esc(ev.n.length>35?ev.n.slice(0,35)+"…":ev.n)}${!isKR&&tr&&S.showTr?` <span style="font-size:9px;color:#6366f1">→ ${esc(tr)}</span>`:""}</div>`;
-      h+=`<div class="rank-metrics">DB ${fN(ev.cur.d)} · 조회 ${fN(ev.cur.v)} · CVR ${cvr} · 성장 ${ev.dG!==null?fG(ev.dG):"-"}</div>`;
-      if(S.showComments) h+=`<div class="rank-comment"><span style="font-size:9px;color:#ef4444;font-weight:700">⚠ 개선 필요</span><br>${esc(comment)}</div>`;
-      h+=`</div></div>`;
-    });
-    h+=`</div></div>`;
+    h+=`<div class="cf"><button class="cb ${S.opFilter==="ALL"?"a":""}" onclick="SS({opFilter:'ALL'})">전체 (${allEvs.length})</button><button class="cb ${S.opFilter==="N"?"a":""}" onclick="SS({opFilter:'N'})">💉 시술 (${nCount})</button><button class="cb ${S.opFilter==="S"?"a":""}" onclick="SS({opFilter:'S'})">🔪 수술 (${sCount})</button>${uCount?`<button class="cb ${S.opFilter==="?"?"a":""}" onclick="SS({opFilter:'?'})">❓ 미분류 (${uCount})</button>`:""}</div>`;
     h+=`<div class="cf">${["db:DB순","growth:성장률순"].map(s=>{const[k,l]=s.split(":");return`<button class="cb ${S.sort===k?"a":""}" onclick="SS({sort:'${k}'})">${l}</button>`;}).join("")}</div>`;
     evs.forEach((ev,ei)=>{
       const isKR=ev.l==="KR",kw=findTagKw(ev.n),trText=autoTr(ev.n);
@@ -492,16 +521,29 @@ function rCh(){
   const c2=document.getElementById("c2");
   if(c2){const tots=ms.map(m=>mTot(m,co)),cpas=tots.map(t=>t.cpa).filter(v=>v>0);const mn=cpas.length?Math.min(...cpas)*.85:0,mx=cpas.length?Math.max(...cpas)*1.1:1;
     S.ch.c2=new Chart(c2.getContext("2d"),{type:"line",data:{labels:lbs,datasets:[{label:"DB당 투자비용",data:tots.map(t=>t.cpa),borderColor:"#0891b2",backgroundColor:"rgba(8,145,178,.06)",borderWidth:3,pointRadius:5,pointBackgroundColor:"#0891b2",pointBorderColor:"#fff",pointBorderWidth:2,fill:true,tension:.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...sty.tt,callbacks:{label:c=>"₩"+fN(c.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:10}}},y:{grid:sty.grid,ticks:{...sty.tick,callback:v=>"₩"+fN(v)},min:Math.floor(mn/1000)*1000,max:Math.ceil(mx/1000)*1000}}}});}
-  // Country pie chart
+  // Country pie chart with % labels inside
   const cPie=document.getElementById("cPie");
   if(cPie){
     const PIE_COLORS={"KR":"#6366f1","JP":"#f59e0b","EN":"#10b981","TW":"#ec4899","TH":"#f97316","CN":"#ef4444"};
     const countries=[...new Set(D.events.map(e=>e.l))];
     const countryDB=countries.map(c=>{let d=0;D.events.forEach(ev=>{if(ev.l===c)d+=evT(ev,lm).d;});return{c,d};}).filter(x=>x.d>0).sort((a,b)=>b.d-a.d);
+    const totalDB=countryDB.reduce((s,x)=>s+x.d,0);
+    // Plugin to draw % labels inside slices
+    const labelPlugin={id:'doughnutLabels',afterDraw(chart){const ctx=chart.ctx;ctx.save();ctx.font="bold 11px 'JetBrains Mono'";ctx.textAlign='center';ctx.textBaseline='middle';
+      chart.data.datasets[0].data.forEach((val,i)=>{const meta=chart.getDatasetMeta(0).data[i];if(!meta)return;
+        const pct=(val/totalDB*100);if(pct<3)return; // skip tiny slices
+        const{x,y}=meta.tooltipPosition();ctx.fillStyle='#fff';ctx.fillText(pct.toFixed(0)+'%',x,y);});ctx.restore();}};
     S.ch.cPie=new Chart(cPie.getContext("2d"),{type:"doughnut",data:{
-      labels:countryDB.map(x=>(CL[x.c]||x.c)+" "+fN(x.d)+"건"),
-      datasets:[{data:countryDB.map(x=>x.d),backgroundColor:countryDB.map(x=>(PIE_COLORS[x.c]||"#9ca3af")+"80"),borderColor:countryDB.map(x=>PIE_COLORS[x.c]||"#9ca3af"),borderWidth:2}]
-    },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"right",labels:{color:"#374151",font:{size:10},boxWidth:12,padding:8}},tooltip:{...sty.tt,callbacks:{label:c=>{const total=countryDB.reduce((s,x)=>s+x.d,0);return c.label+` (${(c.raw/total*100).toFixed(1)}%)`;}}}}}}); }  // Detail charts
+      labels:countryDB.map(x=>(CL[x.c]||x.c)),
+      datasets:[{data:countryDB.map(x=>x.d),backgroundColor:countryDB.map(x=>(PIE_COLORS[x.c]||"#9ca3af")+"cc"),borderColor:"#fff",borderWidth:3}]
+    },plugins:[labelPlugin],options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{display:false},tooltip:{...sty.tt,callbacks:{label:c=>(CL[countryDB[c.dataIndex].c]||"")+": "+fN(c.raw)+"명 ("+(c.raw/totalDB*100).toFixed(1)+"%)"}}}}});
+  }
+  // CVR trend chart (when CPA is off)
+  const cCvr=document.getElementById("cCvr");
+  if(cCvr){
+    const tots=ms.map(m=>mTot(m,"ALL"));
+    S.ch.cCvr=new Chart(cCvr.getContext("2d"),{type:"line",data:{labels:lbs,datasets:[{label:"전환율",data:tots.map(t=>t.r*100),borderColor:"#6366f1",backgroundColor:"rgba(99,102,241,.08)",borderWidth:3,pointRadius:5,pointBackgroundColor:"#6366f1",pointBorderColor:"#fff",pointBorderWidth:2,fill:true,tension:.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...sty.tt,callbacks:{label:c=>c.parsed.y.toFixed(1)+"%"}}},scales:{x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:10}}},y:{grid:sty.grid,ticks:{...sty.tick,callback:v=>v.toFixed(1)+"%"}}}}});
+  }  // Detail charts
   if(S.exp.size>0&&S.tab==="events"){
     // Find all expanded canvases by scanning DOM
     document.querySelectorAll('canvas[id^="dc_"]').forEach(cv=>{
