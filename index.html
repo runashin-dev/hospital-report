@@ -289,7 +289,7 @@ async function rHome(){
 function rDash(){
   const co=S.co,ms=S.ms,lm=S.lm,l3=ms.slice(-3);
   let h=`<button class="bbtn" onclick="goHome()">← 병원 목록</button>`;
-  h+=`<div class="hdr"><div><div style="font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px">PERFORMANCE REPORT</div><h1>${esc(D.hospital)}</h1><div style="font-size:11px;color:#9ca3af;margin-top:2px">${fM(ms[0])} ~ ${fM(lm)} ${D.tag?`· 📈 시장 ${Object.keys(D.tag).length}개 키워드`:"· <span style='color:#ef4444'>⚠️ 태그SU 없음</span>"}</div></div><div style="display:flex;gap:8px;align-items:center"><button onclick="exportPDF()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">📄 PDF</button><button onclick="saveCurrent()" style="padding:7px 16px;border-radius:8px;border:1px solid ${isDirty?"#6366f1":"#e5e7eb"};background:${isDirty?"#6366f1":"#fff"};color:${isDirty?"#fff":"#6b7280"};font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">💾 ${isDirty?"저장하기":"저장됨"}</button></div></div>`;
+  h+=`<div class="hdr"><div><div style="font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px">PERFORMANCE REPORT</div><h1>${esc(D.hospital)}</h1><div style="font-size:11px;color:#9ca3af;margin-top:2px">${fM(ms[0])} ~ ${fM(lm)} ${D.tag?`· 📈 시장 ${Object.keys(D.tag).length}개 키워드`:"· <span style='color:#ef4444'>⚠️ 태그SU 없음</span>"}</div></div><div style="display:flex;gap:8px;align-items:center"><button onclick="exportPDF()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">📄 PDF</button><button onclick="copyShareLink()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">🔗 링크</button><button onclick="saveCurrent()" style="padding:7px 16px;border-radius:8px;border:1px solid ${isDirty?"#6366f1":"#e5e7eb"};background:${isDirty?"#6366f1":"#fff"};color:${isDirty?"#fff":"#6b7280"};font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">💾 ${isDirty?"저장하기":"저장됨"}</button></div></div>`;
   h+=`<div class="ctrl"><label class="tg"><input type="checkbox" id="pt" ${S.proj?"checked":""} onchange="S.proj=this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">예상실적 보정</span></label><div class="dv"></div><div class="cg"><span class="cl">병원</span><input type="number" class="ni" id="ce" value="${S.cpvE}" min="1" max="31"><span class="cl">일</span></div><div class="cg"><span class="cl">시장</span><input type="number" class="ni" id="me" value="${S.mktE}" min="1" max="31"><span class="cl">일</span></div><div class="dv"></div><div class="cg"><span class="cl">기준월</span><select class="ni" style="width:auto;padding:3px 6px;font-size:10px" onchange="S.baseMo=this.value;R()">${D.months.map(m=>`<option value="${m}" ${m===S.baseMo?"selected":""}>${fM(m)}</option>`).join("")}</select></div><div class="dv"></div><div class="cg"><span class="cl">MOM</span><input type="number" class="ni" id="momM" value="${S.momMonths}" min="2" max="${ms.length}" style="width:32px"><span class="cl">개월</span></div><div class="dv"></div><label class="tg"><input type="checkbox" id="trToggle" ${S.showTr?"checked":""} onchange="S.showTr=this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">번역 보기</span></label><div class="dv"></div><label class="tg"><input type="checkbox" ${!S.showCPA?"checked":""} onchange="S.showCPA=!this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">병원용</span></label><div class="dv"></div><span onclick="document.getElementById('tagUp').click()" style="font-size:10px;color:${D.tag?'#059669':'#dc2626'};cursor:pointer;font-weight:600">${D.tag?'📈 시장데이터 ✓':'📈 태그SU 업로드'}</span><input type="file" id="tagUp" accept=".xlsx,.xls" style="display:none" onchange="onTagUpload(this)"></div>`;
   h+=`<div class="tabs">${[["overview","종합"],["events","이벤트별"],["cpc","CPC"],["mom","MOM"]].map(([k,l])=>`<button class="tb ${S.tab===k?"a":""}" onclick="SS({tab:'${k}'})">${l}</button>`).join("")}</div>`;
   if(S.tab!=="cpc"){const cs=["ALL",...new Set(D.events.map(e=>e.l))];h+=`<div class="cf">${cs.map(c=>`<button class="cb ${co===c?"a":""}" onclick="SS({co:'${c}'})">${CL[c]||c}</button>`).join("")}</div>`;}
@@ -311,9 +311,9 @@ function rDash(){
     h+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="st2" style="margin:0">📊 성과 요약</div><div class="cf" style="margin:0">${["mom:전월비","yoy:전년비","both:전월+전년"].map(s=>{const[k,l]=s.split(":");return`<button class="cb ${(S.kpiMode||"mom")===k?"a":""}" onclick="SS({kpiMode:'${k}'})">${l}</button>`;}).join("")}</div></div>`;
     h+=`<div class="grid g4" style="margin-bottom:14px">`;
     recentMs.forEach(m=>{
-      const t=mTot(m,"ALL");
-      const mi=ms.indexOf(m);const prevM=mi>0?ms[mi-1]:null;const momT2=prevM?mTot(prevM,"ALL"):{d:0,v:0};
-      const[y,mo]=m.split("-");const yoyM=(+y-1)+"-"+mo;const yoyT=mTot(yoyM,"ALL");
+      const t=mTot(m,co);
+      const mi=ms.indexOf(m);const prevM=mi>0?ms[mi-1]:null;const momT2=prevM?mTot(prevM,co):{d:0,v:0};
+      const[y,mo]=m.split("-");const yoyM=(+y-1)+"-"+mo;const yoyT=mTot(yoyM,co);
       const momD=momT2.d?bg((t.d-momT2.d)/momT2.d*100):"";
       const yoyD=yoyT.d?bg((t.d-yoyT.d)/yoyT.d*100):"";
       const momV=momT2.v?bg((t.v-momT2.v)/momT2.v*100):"";
@@ -533,7 +533,11 @@ function rCh(){
   const lbs=ms.map(fM);
   const c1=document.getElementById("c1");
   if(c1){const tots=ms.map(m=>mTot(m,co));
-    const dlPlugin={id:'dlp',afterDatasetsDraw(chart){const ctx=chart.ctx;const dsIdx=S.showOV?1:0;const meta=chart.getDatasetMeta(dsIdx);if(!meta)return;meta.data.forEach((bar,i)=>{const v=chart.data.datasets[dsIdx].data[i];if(!v)return;ctx.save();ctx.font="bold 10px 'JetBrains Mono'";ctx.fillStyle="#0891b2";ctx.textAlign="center";ctx.fillText(fN(v),bar.x,bar.y-6);ctx.restore();});}};
+    const dlPlugin={id:'dlp',afterDatasetsDraw(chart){const ctx=chart.ctx;
+      // Find the DB dataset by label
+      const dsIdx=chart.data.datasets.findIndex(ds=>ds.label==="DB");if(dsIdx<0)return;
+      const meta=chart.getDatasetMeta(dsIdx);if(!meta)return;
+      meta.data.forEach((bar,i)=>{const v=chart.data.datasets[dsIdx].data[i];if(!v)return;ctx.save();ctx.font="bold 10px 'JetBrains Mono'";ctx.fillStyle="#0891b2";ctx.textAlign="center";ctx.fillText(fN(v),bar.x,bar.y-6);ctx.restore();});}};
     const datasets=[];
     if(S.showOV)datasets.push({label:"조회수",data:tots.map(t=>t.v),backgroundColor:"rgba(99,102,241,.2)",borderColor:"#6366f1",borderWidth:1,borderRadius:4,yAxisID:"y"});
     datasets.push({label:"DB",data:tots.map(t=>t.d),backgroundColor:"rgba(8,145,178,.25)",borderColor:"#0891b2",borderWidth:1,borderRadius:4,yAxisID:S.showOV?"y1":"y"});
@@ -564,7 +568,7 @@ function rCh(){
   // CVR trend chart (when CPA is off)
   const cCvr=document.getElementById("cCvr");
   if(cCvr){
-    const tots=ms.map(m=>mTot(m,"ALL"));
+    const tots=ms.map(m=>mTot(m,co));
     const cvrDl={id:'cvrDl',afterDatasetsDraw(chart){const ctx=chart.ctx;const meta=chart.getDatasetMeta(0);meta.data.forEach((pt,i)=>{const v=chart.data.datasets[0].data[i];if(v==null)return;ctx.save();ctx.font="bold 10px 'JetBrains Mono'";ctx.fillStyle="#6366f1";ctx.textAlign="center";ctx.fillText(v.toFixed(1)+"%",pt.x,pt.y-8);ctx.restore();});}};
     S.ch.cCvr=new Chart(cCvr.getContext("2d"),{type:"line",plugins:[cvrDl],data:{labels:lbs,datasets:[{label:"전환율",data:tots.map(t=>t.r*100),borderColor:"#6366f1",backgroundColor:"rgba(99,102,241,.08)",borderWidth:3,pointRadius:5,pointBackgroundColor:"#6366f1",pointBorderColor:"#fff",pointBorderWidth:2,fill:true,tension:.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{...sty.tt,callbacks:{label:c=>c.parsed.y.toFixed(1)+"%"}}},scales:{x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:10}}},y:{grid:sty.grid,ticks:{...sty.tick,callback:v=>v.toFixed(1)+"%"}}}}});
   }  // Detail charts
@@ -778,36 +782,41 @@ function doPDFExport(){
   const mode=document.getElementById('pdfMode').value;
   document.getElementById('pdfModal').remove();
   if(mode==='summary') return doSummaryPDF();
-  // Full export
   const checks=document.querySelectorAll('input[name=fullTab]:checked');
   const tabs=[...checks].map(c=>c.value);if(!tabs.length)return;
   const origTab=S.tab;const origExp=new Set(S.exp);
   let printHTML=`<div style="font-family:'Noto Sans KR',sans-serif;max-width:1100px;margin:0 auto;padding:20px">`;
   printHTML+=`<div style="margin-bottom:20px"><div style="font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px">PERFORMANCE REPORT</div><h1 style="font-size:24px;font-weight:900">${esc(D.hospital)}</h1><div style="font-size:11px;color:#9ca3af">${fM(S.ms[0])} ~ ${fM(S.lm)} · ${new Date().toLocaleDateString('ko-KR')}</div></div>`;
-  tabs.forEach(tab=>{
+  let idx=0;
+  function processTab(){
+    if(idx>=tabs.length){
+      printHTML+=`</div>`;
+      S.tab=origTab;S.exp=origExp;R();
+      openPrintWindow(printHTML);
+      return;
+    }
+    const tab=tabs[idx];
     S.tab=tab;S.exp=new Set();rDash();
-    // Wait for charts to render, then convert canvas→img
-    setTimeout(()=>{},100);rCh();
-    // Convert all canvases to images
-    document.querySelectorAll('#app canvas').forEach(cv=>{
-      try{
-        const img=document.createElement('img');
-        img.src=cv.toDataURL('image/png');
-        img.style.cssText='width:100%;max-height:220px;object-fit:contain';
-        cv.parentNode.replaceChild(img,cv);
-      }catch(e){}
-    });
-    const content=document.getElementById('app').innerHTML;
-    const doc=(new DOMParser()).parseFromString(content,'text/html');
-    doc.querySelectorAll('.bbtn,.ctrl,.tabs,.cf,button,.footer').forEach(el=>el.remove());
-    const hdr=doc.querySelector('.hdr');if(hdr)hdr.remove();
-    printHTML+=`<div style="page-break-before:${tabs.indexOf(tab)>0?'always':'auto'};margin-bottom:20px">`;
-    printHTML+=`<h2 style="font-size:16px;font-weight:800;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #6366f1">${{overview:'종합 대시보드',events:'이벤트별 성과',cpc:'CPC 검색광고',mom:'MOM 변화'}[tab]}</h2>`;
-    printHTML+=doc.body.innerHTML;printHTML+=`</div>`;
-  });
-  printHTML+=`</div>`;
-  S.tab=origTab;S.exp=origExp;R();
-  openPrintWindow(printHTML);
+    // Give charts time to render
+    setTimeout(()=>{
+      try{rCh();}catch(e){}
+      setTimeout(()=>{
+        // Convert canvases to images
+        document.querySelectorAll('#app canvas').forEach(cv=>{
+          try{const img=document.createElement('img');img.src=cv.toDataURL('image/png');img.style.cssText='width:100%;max-height:220px;object-fit:contain';cv.parentNode.replaceChild(img,cv);}catch(e){}
+        });
+        const content=document.getElementById('app').innerHTML;
+        const doc=(new DOMParser()).parseFromString(content,'text/html');
+        doc.querySelectorAll('.bbtn,.ctrl,.tabs,.cf,button,.footer,.tg').forEach(el=>el.remove());
+        const hdr=doc.querySelector('.hdr');if(hdr)hdr.remove();
+        printHTML+=`<div style="page-break-before:${idx>0?'always':'auto'};margin-bottom:20px">`;
+        printHTML+=`<h2 style="font-size:16px;font-weight:800;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #6366f1">${{overview:'종합 대시보드',events:'이벤트별 성과',cpc:'CPC 검색광고',mom:'MOM 변화'}[tab]}</h2>`;
+        printHTML+=doc.body.innerHTML;printHTML+=`</div>`;
+        idx++;processTab();
+      },200);
+    },100);
+  }
+  processTab();
 }
 function doSummaryPDF(){
   const checks=document.querySelectorAll('input[name=sumEv]:checked');
@@ -893,5 +902,20 @@ function openPrintWindow(html){
   <script>setTimeout(()=>window.print(),500);<\/script></body></html>`);
   pw.document.close();
 }
-R();
+// Share link helper
+function copyShareLink(){
+  if(!D)return;
+  const url=window.location.origin+window.location.pathname+'?hospital='+encodeURIComponent(D.hospital);
+  navigator.clipboard.writeText(url).then(()=>alert('링크 복사됨!\n'+url)).catch(()=>{prompt('이 링크를 복사하세요:',url);});
+}
+// URL param: ?hospital=병원명 → auto-load
+(async function(){
+  const params=new URLSearchParams(window.location.search);
+  const hospParam=params.get('hospital');
+  if(hospParam){
+    const data=await loadH(hospParam);
+    if(data){D=data;S.hn=hospParam;S.scr="dash";isDirty=false;}
+  }
+  R();
+})();
 </script></body></html>
