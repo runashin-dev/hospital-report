@@ -557,7 +557,7 @@ function rCh(){
         {label:"전환율(%)",data:cvrs,type:"line",borderColor:"#6366f1",borderWidth:2,borderDash:[5,3],pointRadius:3,pointBackgroundColor:"#6366f1",yAxisID:"y1",tension:.3,spanGaps:true}
       ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:"#6b7280",font:{size:8},boxWidth:6}},tooltip:{...sty.tt,callbacks:{label:c=>c.datasetIndex===0?fN(c.raw)+"건":c.raw?.toFixed(1)+"%"}}},scales:{
         x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:9}}},y:{position:"left",grid:sty.grid,ticks:{...sty.tick}},
-        y1:{position:"right",grid:{drawOnChartArea:false},ticks:{...sty.tick,callback:v=>v.toFixed(1)+"%"}}}});
+        y1:{position:"right",grid:{drawOnChartArea:false},ticks:{...sty.tick,callback:v=>v.toFixed(1)+"%"}}}}});
     });
   }
   // CPC charts
