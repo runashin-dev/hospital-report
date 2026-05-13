@@ -202,6 +202,9 @@ function findTagKw(evName){
       const sub=w.slice(i,i+len);let bTag="",bTL=9999;
       for(const kw of tagKeys){if(kw.includes(sub)&&kw.length<bTL){bTag=kw;bTL=kw.length;}}
       if(bTag)return bTag;}}}
+  // ⑧ Manual fallback for keywords not in tag/category data
+  const FB={"염증":"여드름주사","여드름":"여드름압출","모공":"아쿠아필링","탄력":"콜라겐주사","수분":"물광주사","재생":"PRP피부재생술","미백":"레이저토닝","기미":"레이저토닝","색소":"레이저토닝","턱끝":"턱끝보톡스","이중턱":"이중턱지방흡입","팔자":"팔자주름필러","귀족":"귀족수술(보형물)","다이어트":"다이어트한약","체형":"윤곽주사","동안":"콜라겐주사","안티에이징":"콜라겐주사","볼처짐":"안면거상술","처짐":"실리프팅","스킨케어":"아쿠아필링","피부관리":"아쿠아필링","흉터":"흉터제거레이저","켈로이드":"캘로이드주사","제모":"겨드랑이제모","문신":"문신제거","반영구":"문신제거","치아":"치아미백","hair":"머리모발이식","acne":"여드름압출","pore":"아쿠아필링","whitening":"레이저토닝","aging":"콜라겐주사","diet":"다이어트한약","scar":"흉터제거레이저"};
+  for(const w of words){for(const[k,v]of Object.entries(FB)){if(w.includes(k)||k.includes(w)){if(D.tag[v])return v;}}}
   return"";
 }
 function mkSVG(kw){
