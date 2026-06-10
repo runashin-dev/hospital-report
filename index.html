@@ -319,12 +319,14 @@ function rDash(){
     h+=`<div class="grid g4" style="margin-bottom:14px">`;
     recentMs.forEach(m=>{
       const t=mTot(m,co);
-      const mi=ms.indexOf(m);const prevM=mi>0?ms[mi-1]:null;const momT2=prevM?mTot(prevM,co):{d:0,v:0};
+      const mi=ms.indexOf(m);const prevM=mi>0?ms[mi-1]:null;const momT2=prevM?mTot(prevM,co):{d:0,v:0,c:0};
       const[y,mo]=m.split("-");const yoyM=(+y-1)+"-"+mo;const yoyT=mTot(yoyM,co);
       const momD=momT2.d?bg((t.d-momT2.d)/momT2.d*100):"";
       const yoyD=yoyT.d?bg((t.d-yoyT.d)/yoyT.d*100):"";
       const momV=momT2.v?bg((t.v-momT2.v)/momT2.v*100):"";
       const yoyV=yoyT.v?bg((t.v-yoyT.v)/yoyT.v*100):"";
+      const momC=momT2.c?bg((t.c-momT2.c)/momT2.c*100):"";
+      const yoyC=yoyT.c?bg((t.c-yoyT.c)/yoyT.c*100):"";
       const mode=S.kpiMode||"mom";
       h+=`<div class="card" ${m===lm?'style="border:2px solid #6366f1"':''}>`;
       // OV row
@@ -340,7 +342,14 @@ function rDash(){
       if(mode==="mom")h+=`<div class="kf" style="font-size:10px">${momD} 전월비</div>`;
       else if(mode==="yoy")h+=`<div class="kf" style="font-size:10px">${yoyD} 전년비</div>`;
       else h+=`<div class="kf" style="font-size:10px">${momD} <span style="color:#9ca3af">전월</span> ${yoyD} <span style="color:#9ca3af">전년</span></div>`;
-      h+=`<div style="font-size:9px;color:#9ca3af;margin-top:3px">CVR ${fP(t.r)}</div></div>`;
+      h+=`<div style="font-size:9px;color:#9ca3af;margin-top:3px">CVR ${fP(t.r)}</div>`;
+      // 광고비 row
+      h+=`<div style="height:1px;background:#f3f4f6;margin:4px 0"></div>`;
+      h+=`<div style="font-size:9px;color:#6b7280;margin-top:2px">광고비 <strong style="font-family:'JetBrains Mono';color:#374151">₩${fN(t.c)}</strong> `;
+      if(mode==="mom")h+=momC;
+      else if(mode==="yoy")h+=yoyC;
+      else h+=`${momC} ${yoyC}`;
+      h+=`</div></div>`;
     });
     h+=`</div>`;
 
@@ -924,11 +933,30 @@ function copyShareLink(){
   const url=window.location.origin+window.location.pathname+'?hospital='+encodeURIComponent(D.hospital);
   navigator.clipboard.writeText(url).then(()=>alert('링크 복사됨!\n'+url)).catch(()=>{prompt('이 링크를 복사하세요:',url);});
 }
-function exportJSON(){
+async function exportJSON(){
   if(!D)return;
-  const blob=new Blob([JSON.stringify(D)],{type:'application/json'});
+  const jsonStr=JSON.stringify(D);
+  const fileName=D.hospital+'_report.json';
+  // Try File System Access API (allows saving directly to iCloud Drive)
+  if(window.showSaveFilePicker){
+    try{
+      const handle=await window.showSaveFilePicker({suggestedName:fileName,types:[{description:'JSON',accept:{'application/json':['.json']}}]});
+      const writable=await handle.createWritable();
+      await writable.write(jsonStr);await writable.close();
+      alert('✓ 저장 완료!\niCloud Drive에 저장했다면 다른 기기에서 바로 불러올 수 있습니다.');
+      return;
+    }catch(e){if(e.name==='AbortError')return;}
+  }
+  // Fallback: regular download
+  const blob=new Blob([jsonStr],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download=D.hospital+'_report.json';a.click();URL.revokeObjectURL(a.href);
+  a.download=fileName;a.click();URL.revokeObjectURL(a.href);
+  // Check if likely Mac (for iCloud message)
+  if(navigator.platform?.includes('Mac')||navigator.userAgent?.includes('Mac')){
+    alert('📦 다운로드 완료!\n\n💡 iCloud 동기화 팁:\n① 다운로드된 파일을 iCloud Drive로 이동\n② 다른 Mac에서 홈화면 → "📦 JSON 가져오기"로 불러오기\n\n※ Safari는 저장 위치 선택이 안 되므로, 다운로드 폴더에서 iCloud Drive로 직접 이동해주세요.');
+  } else {
+    alert('📦 다운로드 완료!\n\n⚠️ iCloud Drive는 Apple 기기에서만 사용 가능합니다.\n다른 방법: 다운로드된 .json 파일을 이메일/메신저로 전송 후 가져오기');
+  }
 }
 function importJSON(inp){
   if(!inp.files[0])return;
