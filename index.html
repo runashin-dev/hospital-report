@@ -223,7 +223,8 @@ function mkSVG(kw){
 let D=null,savedList=[],isDirty=false;
 // Auto-calculate elapsed days from today's date
 function autoElapsed(){const d=new Date();return Math.max(1,d.getDate()-1);}
-let S={scr:"home",tab:"overview",co:"ALL",sort:"db",exp:new Set(),proj:true,cpvE:autoElapsed(),mktE:autoElapsed(),ch:{},hn:"",statusMsg:"",statusType:"",files:{cpv:null,cpc:null,tag:null},showTr:false,showComments:false,showCPA:true,showOV:true,momDetail:new Set(),momMonths:3,opFilter:"ALL",baseMo:null};
+let S={scr:"home",tab:"overview",co:new Set(["ALL"]),sort:"db",exp:new Set(),proj:true,cpvE:autoElapsed(),mktE:autoElapsed(),ch:{},hn:"",statusMsg:"",statusType:"",files:{cpv:null,cpc:null,tag:null},showTr:false,showComments:false,showCPA:true,showOV:true,momDetail:new Set(),momMonths:3,opFilter:"ALL",baseMo:null};
+function coMatch(lang){return S.co.has("ALL")||S.co.has(lang);}
 function init(){if(!D)return;
   const allMs=D.months;
   // baseMo = analysis target month. Only show data up to this month.
@@ -240,9 +241,9 @@ const prj=(v,el,m)=>{const d=dim(m);return(!el||el>=d)?v:Math.round(v/el*d)};
 function evCPV(ev,m){const r=ev.m[m]||[0,0,0];let[v,d,c]=r;if(S.proj&&isP(m,S.cpvE)){v=prj(v,S.cpvE,m);d=prj(d,S.cpvE,m);c=prj(c,S.cpvE,m);}return{v,d,c};}
 function evCPC(n,m){const cd=D.cpc[n];if(!cd)return{cl:0,cn:0,tc:0};const x=cd[m];if(!x)return{cl:0,cn:0,tc:0};return{cl:x[1],cn:x[5],tc:x[4]};}
 function evT(ev,m){const cpv=evCPV(ev,m),cpc=evCPC(ev.n,m);const td=cpv.d+cpc.cn,tc=cpv.c+cpc.tc;return{v:cpv.v,d:td,c:tc,cpa:td>0?tc/td:0,r:cpv.v>0?td/cpv.v:0,cpvD:cpv.d,cpcD:cpc.cn};}
-function mTot(m,co){let v=0,d=0,c=0;D.events.forEach(ev=>{if(co!=="ALL"&&ev.l!==co)return;const t=evT(ev,m);v+=t.v;d+=t.d;c+=t.c;});return{v,d,c,cpa:d>0?c/d:0,r:v>0?d/v:0};}
-function cpvMTot(m,co){let v=0,d=0,c=0;D.events.forEach(ev=>{if(co!=="ALL"&&ev.l!==co)return;const t=evCPV(ev,m);v+=t.v;d+=t.d;c+=t.c;});return{v,d,c,cpa:d>0?c/d:0};}
-function cpcMT(m,co){let cl=0,cn=0,tc=0;Object.entries(D.cpc).forEach(([name,e])=>{if(co&&co!=="ALL"&&dlang(name)!==co)return;const x=e[m];if(x){cl+=x[1];cn+=x[5];tc+=x[4];}});return{cl,cn,tc,cpa:cn>0?tc/cn:0};}
+function mTot(m,co){let v=0,d=0,c=0;D.events.forEach(ev=>{if(co instanceof Set){if(!co.has("ALL")&&!co.has(ev.l))return;}else{if(co!=="ALL"&&ev.l!==co)return;}const t=evT(ev,m);v+=t.v;d+=t.d;c+=t.c;});return{v,d,c,cpa:d>0?c/d:0,r:v>0?d/v:0};}
+function cpvMTot(m,co){let v=0,d=0,c=0;D.events.forEach(ev=>{if(co instanceof Set){if(!co.has("ALL")&&!co.has(ev.l))return;}else{if(co!=="ALL"&&ev.l!==co)return;}const t=evCPV(ev,m);v+=t.v;d+=t.d;c+=t.c;});return{v,d,c,cpa:d>0?c/d:0};}
+function cpcMT(m,co){let cl=0,cn=0,tc=0;Object.entries(D.cpc).forEach(([name,e])=>{const l=dlang(name);if(co instanceof Set){if(!co.has("ALL")&&!co.has(l))return;}else{if(co&&co!=="ALL"&&l!==co)return;}const x=e[m];if(x){cl+=x[1];cn+=x[5];tc+=x[4];}});return{cl,cn,tc,cpa:cn>0?tc/cn:0};}
 
 // ===== FILE PARSE =====
 function parseFiles(){
@@ -284,7 +285,10 @@ async function rHome(){
   [{k:"cpv",i:"📊",t:"CPV",d:"일반광고",r:1},{k:"cpc",i:"🔍",t:"CPC",d:"검색광고"},{k:"tag",i:"📈",t:"태그SU",d:"시장 트렌드"}].forEach(u=>{
     const ok=!!f[u.k];h+=`<div class="ubox ${ok?"ok":""}" onclick="document.getElementById('f_${u.k}').click()"><div class="ic">${u.i}</div><div class="ut">${u.t}${u.r?' <span style="color:#dc2626">*</span>':""}</div><div class="ud">${u.d}</div>${ok?`<div class="uf">✓ ${esc(f[u.k].name)}</div>`:""}<input type="file" id="f_${u.k}" accept=".xlsx,.xls" onchange="onFile('${u.k}',this)"></div>`;});
   h+=`</div><button class="gbtn" id="gb" ${f.cpv?"":"disabled"} onclick="gen()">리포트 생성</button>
-  <button style="background:#fff;border:1px solid #e5e7eb;color:#6b7280;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:'Noto Sans KR';font-size:11px;margin-top:12px" onclick="loadSampleData()">히트성형외과 샘플</button></div>`;
+  <div style="display:flex;gap:8px;margin-top:12px">
+  <button style="background:#fff;border:1px solid #e5e7eb;color:#6b7280;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:'Noto Sans KR';font-size:11px" onclick="loadSampleData()">히트성형외과 샘플</button>
+  <label style="background:#fff;border:1px solid #6366f1;color:#6366f1;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:'Noto Sans KR';font-size:11px;font-weight:600">📦 JSON 가져오기<input type="file" accept=".json" style="display:none" onchange="importJSON(this)"></label>
+  </div></div>`;
   document.getElementById("app").innerHTML=h;
   document.getElementById("hn")?.addEventListener("input",e=>{S.hn=e.target.value;});
 }
@@ -292,10 +296,10 @@ async function rHome(){
 function rDash(){
   const co=S.co,ms=S.ms,lm=S.lm,l3=ms.slice(-3);
   let h=`<button class="bbtn" onclick="goHome()">← 병원 목록</button>`;
-  h+=`<div class="hdr"><div><div style="font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px">PERFORMANCE REPORT</div><h1>${esc(D.hospital)}</h1><div style="font-size:11px;color:#9ca3af;margin-top:2px">${fM(ms[0])} ~ ${fM(lm)} ${D.tag?`· 📈 시장 ${Object.keys(D.tag).length}개 키워드`:"· <span style='color:#ef4444'>⚠️ 태그SU 없음</span>"}</div></div><div style="display:flex;gap:8px;align-items:center"><button onclick="exportPDF()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">📄 PDF</button><button onclick="copyShareLink()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">🔗 링크</button><button onclick="saveCurrent()" style="padding:7px 16px;border-radius:8px;border:1px solid ${isDirty?"#6366f1":"#e5e7eb"};background:${isDirty?"#6366f1":"#fff"};color:${isDirty?"#fff":"#6b7280"};font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">💾 ${isDirty?"저장하기":"저장됨"}</button></div></div>`;
+  h+=`<div class="hdr"><div><div style="font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px">PERFORMANCE REPORT</div><h1>${esc(D.hospital)}</h1><div style="font-size:11px;color:#9ca3af;margin-top:2px">${fM(ms[0])} ~ ${fM(lm)} ${D.tag?`· 📈 시장 ${Object.keys(D.tag).length}개 키워드`:"· <span style='color:#ef4444'>⚠️ 태그SU 없음</span>"}</div></div><div style="display:flex;gap:8px;align-items:center"><button onclick="exportPDF()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">📄 PDF</button><button onclick="copyShareLink()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">🔗 링크</button><button onclick="exportJSON()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">📦 내보내기</button><button onclick="saveCurrent()" style="padding:7px 16px;border-radius:8px;border:1px solid ${isDirty?"#6366f1":"#e5e7eb"};background:${isDirty?"#6366f1":"#fff"};color:${isDirty?"#fff":"#6b7280"};font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">💾 ${isDirty?"저장하기":"저장됨"}</button></div></div>`;
   h+=`<div class="ctrl"><label class="tg"><input type="checkbox" id="pt" ${S.proj?"checked":""} onchange="S.proj=this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">예상실적 보정</span></label><div class="dv"></div><div class="cg"><span class="cl">병원</span><input type="number" class="ni" id="ce" value="${S.cpvE}" min="1" max="31"><span class="cl">일</span></div><div class="cg"><span class="cl">시장</span><input type="number" class="ni" id="me" value="${S.mktE}" min="1" max="31"><span class="cl">일</span></div><div class="dv"></div><div class="cg"><span class="cl">기준월</span><select class="ni" style="width:auto;padding:3px 6px;font-size:10px" onchange="S.baseMo=this.value;R()">${D.months.map(m=>`<option value="${m}" ${m===S.baseMo?"selected":""}>${fM(m)}</option>`).join("")}</select></div><div class="dv"></div><div class="cg"><span class="cl">MOM</span><input type="number" class="ni" id="momM" value="${S.momMonths}" min="2" max="${ms.length}" style="width:32px"><span class="cl">개월</span></div><div class="dv"></div><label class="tg"><input type="checkbox" id="trToggle" ${S.showTr?"checked":""} onchange="S.showTr=this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">번역 보기</span></label><div class="dv"></div><label class="tg"><input type="checkbox" ${!S.showCPA?"checked":""} onchange="S.showCPA=!this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">병원용</span></label><div class="dv"></div><span onclick="document.getElementById('tagUp').click()" style="font-size:10px;color:${D.tag?'#059669':'#dc2626'};cursor:pointer;font-weight:600">${D.tag?'📈 시장데이터 ✓':'📈 태그SU 업로드'}</span><input type="file" id="tagUp" accept=".xlsx,.xls" style="display:none" onchange="onTagUpload(this)"></div>`;
   h+=`<div class="tabs">${[["overview","종합"],["events","이벤트별"],["cpc","CPC"],["mom","MOM"]].map(([k,l])=>`<button class="tb ${S.tab===k?"a":""}" onclick="SS({tab:'${k}'})">${l}</button>`).join("")}</div>`;
-  if(S.tab!=="cpc"){const cs=["ALL",...new Set(D.events.map(e=>e.l))];h+=`<div class="cf">${cs.map(c=>`<button class="cb ${co===c?"a":""}" onclick="SS({co:'${c}'})">${CL[c]||c}</button>`).join("")}</div>`;}
+  if(S.tab!=="cpc"){const cs=["ALL",...new Set(D.events.map(e=>e.l))];h+=`<div class="cf">${cs.map(c=>`<button class="cb ${co.has(c)?"a":""}" onclick="toggleCo('${c}')">${CL[c]||c}</button>`).join("")}</div>`;}
 
   // ===== OVERVIEW =====
   if(S.tab==="overview"){
@@ -305,7 +309,7 @@ function rDash(){
     h+=`<div class="grid" style="grid-template-columns:repeat(${cardCount},1fr);gap:10px;margin-bottom:14px">${S.showOV?`<div class="card"><div class="kl">${fM(lm)} 조회수</div><div class="kv">${fN(cur.v)}</div><div class="kf">${bg(gV)} 전월비</div></div>`:""}<div class="card"><div class="kl">총 DB</div><div class="kv">${fN(cur.d)}</div><div class="kf">${bg(gD)} 전월비</div></div><div class="card"><div class="kl">전환율</div><div class="kv">${fP(cur.r)}</div><div class="kf">${prev.r?bg((cur.r-prev.r)/prev.r*100):""} 전월비</div></div>${S.showCPA?`<div class="card"><div class="kl">DB당 투자비용</div><div class="kv" style="color:#0891b2">₩${fN(cur.cpa)}</div><div class="kf">${bgInv(gCPA)} ${cur.cpa<prev.cpa?"개선↓":"악화↑"}</div></div>`:""}<div class="card"><div class="kl">총 광고비</div><div class="kv" style="font-size:18px">₩${fN(cur.c)}</div><div class="kf">${prev.c?bg((cur.c-prev.c)/prev.c*100):""} 전월비</div></div></div>`;
     // Charts and diagnosis moved to new section below KPI cards
     // Diagnosis
-    const diag=D.events.filter(e=>co==="ALL"||e.l===co).map(e=>{const c2=evT(e,lm),p2=evT(e,ms[S.P]);const cpvC=evCPV(e,lm),cpvP=evCPV(e,ms[S.P]);const dG=p2.d>0?(c2.d-p2.d)/p2.d*100:c2.d>0?999:0;const vG=cpvP.v>0?(cpvC.v-cpvP.v)/cpvP.v*100:0;const curR=cpvC.v>0?c2.d/cpvC.v:0,prevR=cpvP.v>0?p2.d/cpvP.v:0;const rG=prevR>0?(curR-prevR)/prevR*100:0;let cause="";if(Math.abs(dG)<5)cause="안정";else if(dG>0)cause=vG>rG?"조회수↑":"전환율↑";else cause=vG<rG?"조회수↓":"전환율↓";return{...e,cur:c2,prev:p2,dG,cause};}).filter(e=>e.cur.d>0||e.dG!==0);
+    const diag=D.events.filter(e=>coMatch(e.l)).map(e=>{const c2=evT(e,lm),p2=evT(e,ms[S.P]);const cpvC=evCPV(e,lm),cpvP=evCPV(e,ms[S.P]);const dG=p2.d>0?(c2.d-p2.d)/p2.d*100:c2.d>0?999:0;const vG=cpvP.v>0?(cpvC.v-cpvP.v)/cpvP.v*100:0;const curR=cpvC.v>0?c2.d/cpvC.v:0,prevR=cpvP.v>0?p2.d/cpvP.v:0;const rG=prevR>0?(curR-prevR)/prevR*100:0;let cause="";if(Math.abs(dG)<5)cause="안정";else if(dG>0)cause=vG>rG?"조회수↑":"전환율↑";else cause=vG<rG?"조회수↓":"전환율↓";return{...e,cur:c2,prev:p2,dG,cause};}).filter(e=>e.cur.d>0||e.dG!==0);
     const rising=diag.filter(e=>e.dG>5).sort((a,b)=>b.dG-a.dG),falling=diag.filter(e=>e.dG<-5).sort((a,b)=>a.dG-b.dG);
     // ===== YoY / MoM KPI cards =====
     const yoyMonth=S.ms.find(m=>{const[y,mo]=m.split("-");return(+y-1)+"-"+mo===ms.find(pm=>pm===(+y-1)+"-"+mo);});
@@ -401,10 +405,10 @@ function rDash(){
 
   // ===== EVENTS TAB =====
   if(S.tab==="events"){
-    let evs=D.events.filter(e=>co==="ALL"||e.l===co).map(e=>{const cur=evT(e,lm),prev=evT(e,ms[S.P]);const op=getOpType(e.n);return{...e,cur,prev,dG:prev.d?(cur.d-prev.d)/prev.d*100:cur.d>0?null:0,op};});
+    let evs=D.events.filter(e=>coMatch(e.l)).map(e=>{const cur=evT(e,lm),prev=evT(e,ms[S.P]);const op=getOpType(e.n);return{...e,cur,prev,dG:prev.d?(cur.d-prev.d)/prev.d*100:cur.d>0?null:0,op};});
     if(S.opFilter!=="ALL")evs=evs.filter(e=>e.op===S.opFilter);
     if(S.sort==="db")evs.sort((a,b)=>b.cur.d-a.cur.d);else if(S.sort==="cpa")evs.sort((a,b)=>(a.cur.cpa||9e9)-(b.cur.cpa||9e9));else if(S.sort==="growth")evs.sort((a,b)=>(b.dG||-999)-(a.dG||-999));
-    const allEvs=D.events.filter(e=>co==="ALL"||e.l===co).map(e=>({op:getOpType(e.n)}));
+    const allEvs=D.events.filter(e=>coMatch(e.l)).map(e=>({op:getOpType(e.n)}));
     const sCount=allEvs.filter(e=>e.op==="S").length,nCount=allEvs.filter(e=>e.op==="N").length,uCount=allEvs.filter(e=>e.op==="?").length;
     h+=`<div class="st2">이벤트별 성과</div><div class="sub2">카드 클릭 → 상세</div>`;
     h+=`<div class="cf"><button class="cb ${S.opFilter==="ALL"?"a":""}" onclick="SS({opFilter:'ALL'})">전체 (${allEvs.length})</button><button class="cb ${S.opFilter==="N"?"a":""}" onclick="SS({opFilter:'N'})">💉 시술 (${nCount})</button><button class="cb ${S.opFilter==="S"?"a":""}" onclick="SS({opFilter:'S'})">🔪 수술 (${sCount})</button>${uCount?`<button class="cb ${S.opFilter==="?"?"a":""}" onclick="SS({opFilter:'?'})">❓ 미분류 (${uCount})</button>`:""}</div>`;
@@ -459,7 +463,7 @@ function rDash(){
   if(S.tab==="cpc"){
     const ct=cpcMT(lm,"ALL");
     const ctP=cpcMT(ms[S.P],"ALL");
-    h+=`<div class="st2">CPC 검색광고</div><div class="grid g4"><div class="card"><div class="kl">${fM(lm)} 클릭수</div><div class="kv">${fN(ct.cl)}</div><div class="kf">${ctP.cl?bg((ct.cl-ctP.cl)/ctP.cl*100):""} 전월비</div></div><div class="card"><div class="kl">DB</div><div class="kv">${fN(ct.cn)}</div><div class="kf">${ctP.cn?bg((ct.cn-ctP.cn)/ctP.cn*100):""} 전월비</div></div><div class="card"><div class="kl">광고비</div><div class="kv">₩${fN(ct.tc)}</div></div><div class="card"><div class="kl">DB당 투자비용</div><div class="kv" style="color:#0891b2">₩${fN(ct.cpa)}</div><div class="kf">${ctP.cpa?bgInv((ct.cpa-ctP.cpa)/ctP.cpa*100):""} 전월비</div></div></div>`;
+    h+=`<div class="st2">CPC 검색광고</div><div class="grid ${S.showCPA?'g4':'g3'}"><div class="card"><div class="kl">${fM(lm)} 클릭수</div><div class="kv">${fN(ct.cl)}</div><div class="kf">${ctP.cl?bg((ct.cl-ctP.cl)/ctP.cl*100):""} 전월비</div></div><div class="card"><div class="kl">DB</div><div class="kv">${fN(ct.cn)}</div><div class="kf">${ctP.cn?bg((ct.cn-ctP.cn)/ctP.cn*100):""} 전월비</div></div><div class="card"><div class="kl">광고비</div><div class="kv">₩${fN(ct.tc)}</div></div>${S.showCPA?`<div class="card"><div class="kl">DB당 투자비용</div><div class="kv" style="color:#0891b2">₩${fN(ct.cpa)}</div><div class="kf">${ctP.cpa?bgInv((ct.cpa-ctP.cpa)/ctP.cpa*100):""} 전월비</div></div>`:""}</div>`;
     // Charts
     h+=`<div class="grid g2" style="margin-bottom:14px">
     <div class="CC"><h3>📊 이벤트별 CPC 성과 (${fM(lm)})</h3><div class="CH"><canvas id="cpcBar"></canvas></div></div>
@@ -468,8 +472,8 @@ function rDash(){
     // Per-event tables
     Object.entries(D.cpc).forEach(([name,evC])=>{
       const lang=dlang(name),tr=autoTr(name);
-      h+=`<div class="CC" style="margin-bottom:8px"><h3>🔍 <span class="fl fl-${lang}">${FL[lang]||""} ${lang}</span> ${esc(name.slice(0,45))}${lang!=="KR"&&tr&&S.showTr?` <span style="font-size:10px;color:#6366f1">→ ${esc(tr)}</span>`:""}</h3><table class="MT"><thead><tr><th>월</th><th>클릭</th><th>CTR</th><th>CPC</th><th>광고비</th><th>DB</th><th>DB당비용</th></tr></thead><tbody>`;
-      ms.forEach(m=>{const x=evC[m];if(!x)return;const isL=m===lm;h+=`<tr><td${isL?' class="hl"':""}>${fM(m)}</td><td${isL?' class="hl"':""}>${fN(x[1])}</td><td${isL?' class="hl"':""}>${fP(x[2])}</td><td${isL?' class="hl"':""}>₩${fN(x[3])}</td><td${isL?' class="hl"':""}>₩${fN(x[4])}</td><td style="font-weight:700;color:#6366f1${isL?";background:#eef2ff":""}">${fN(x[5])}</td><td style="color:#0891b2;font-weight:700${isL?";background:#eef2ff":""}">₩${fN(x[5]>0?x[4]/x[5]:0)}</td></tr>`;});
+      h+=`<div class="CC" style="margin-bottom:8px"><h3>🔍 <span class="fl fl-${lang}">${FL[lang]||""} ${lang}</span> ${esc(name.slice(0,45))}${lang!=="KR"&&tr&&S.showTr?` <span style="font-size:10px;color:#6366f1">→ ${esc(tr)}</span>`:""}</h3><table class="MT"><thead><tr><th>월</th><th>클릭</th><th>CTR</th><th>CPC</th><th>광고비</th><th>DB</th>${S.showCPA?`<th>DB당비용</th>`:""}</tr></thead><tbody>`;
+      ms.forEach(m=>{const x=evC[m];if(!x)return;const isL=m===lm;h+=`<tr><td${isL?' class="hl"':""}>${fM(m)}</td><td${isL?' class="hl"':""}>${fN(x[1])}</td><td${isL?' class="hl"':""}>${fP(x[2])}</td><td${isL?' class="hl"':""}>₩${fN(x[3])}</td><td${isL?' class="hl"':""}>₩${fN(x[4])}</td><td style="font-weight:700;color:#6366f1${isL?";background:#eef2ff":""}">${fN(x[5])}</td>${S.showCPA?`<td style="color:#0891b2;font-weight:700${isL?";background:#eef2ff":""}">₩${fN(x[5]>0?x[4]/x[5]:0)}</td>`:""}</tr>`;});
       h+=`</tbody></table></div>`;});
   }
 
@@ -635,6 +639,15 @@ function rCh(){
 
 // ===== ACTIONS =====
 function SS(p){Object.assign(S,p);R();}
+function toggleCo(c){
+  if(c==="ALL"){S.co=new Set(["ALL"]);}
+  else{
+    S.co.delete("ALL");
+    if(S.co.has(c))S.co.delete(c);else S.co.add(c);
+    if(S.co.size===0)S.co=new Set(["ALL"]);
+  }
+  R();
+}
 function TE(n){if(S.exp.has(n))S.exp.delete(n);else S.exp.add(n);R();}
 function toggleMomDetail(id){if(S.momDetail.has(id))S.momDetail.delete(id);else S.momDetail.add(id);R();}
 function onFile(k,inp){if(inp.files[0]){S.files[k]=inp.files[0];R();}}
@@ -910,6 +923,26 @@ function copyShareLink(){
   if(!D)return;
   const url=window.location.origin+window.location.pathname+'?hospital='+encodeURIComponent(D.hospital);
   navigator.clipboard.writeText(url).then(()=>alert('링크 복사됨!\n'+url)).catch(()=>{prompt('이 링크를 복사하세요:',url);});
+}
+function exportJSON(){
+  if(!D)return;
+  const blob=new Blob([JSON.stringify(D)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=D.hospital+'_report.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importJSON(inp){
+  if(!inp.files[0])return;
+  const fr=new FileReader();
+  fr.onload=function(e){
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.hospital||!data.months||!data.events){alert('유효하지 않은 리포트 파일입니다.');return;}
+      D=data;S.hn=data.hospital;S.scr="dash";isDirty=true;
+      saveH(data.hospital,data);
+      R();
+    }catch(err){alert('파일 파싱 오류: '+err);}
+  };
+  fr.readAsText(inp.files[0]);
 }
 // URL param: ?hospital=병원명 → auto-load
 (async function(){
