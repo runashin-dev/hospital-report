@@ -95,7 +95,7 @@ function hasTag(){return!!localStorage.getItem('shared_tag');}
 const fN=n=>n==null||isNaN(n)?"-":Math.round(n).toLocaleString("ko-KR");
 const fP=n=>n==null||isNaN(n)?"-":(n*100).toFixed(1)+"%";
 const fG=n=>{if(n==null||isNaN(n))return"-";const v=n.toFixed(1);return n>0?"+"+v+"%":v+"%"};
-const fM=m=>({"2026-01":"1월","2026-02":"2월","2026-03":"3월","2026-04":"4월","2026-05":"5월","2025-12":"12월"}[m]||m);
+const fM=m=>{if(!m)return"";const wd=m.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(wd)return+wd[2]+"/"+parseInt(wd[3])+"~";const mm=m.match(/(\d{4})-(\d{2})/);if(mm)return+mm[2]+"월";return m;};
 const bg=n=>{if(n==null||isNaN(n))return"";return`<span class="B ${n>0?"u":n<0?"d":"f"}">${n>0?"▲":n<0?"▼":"→"} ${fG(n)}</span>`;};
 const bgInv=n=>{if(n==null||isNaN(n))return"";return`<span class="B ${n<0?"u":n>0?"d":"f"}">${n>0?"▲":n<0?"▼":"→"} ${fG(n)}</span>`;};
 const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
@@ -227,13 +227,12 @@ let S={scr:"home",tab:"overview",co:new Set(["ALL"]),sort:"db",exp:new Set(),pro
 function coMatch(lang){return S.co.has("ALL")||S.co.has(lang);}
 function init(){if(!D)return;
   const allMs=D.months;
-  // baseMo = analysis target month. Only show data up to this month.
   if(!S.baseMo||!allMs.includes(S.baseMo))S.baseMo=allMs[allMs.length-1];
   const bi=allMs.indexOf(S.baseMo);
   S.ms=allMs.slice(0,bi+1);
   S.lm=S.baseMo;S.L=S.ms.length-1;S.P=S.ms.length-2;
-  // Projection applies only to baseMo if it's the actual last data month
   S.projMonth=allMs[allMs.length-1];
+  if(D.mode==="weekly"){S.proj=false;if(S.momMonths<4)S.momMonths=8;}
   D.events.forEach(ev=>{ev.l=dlang(ev.n);});
 }
 const isP=(m,el)=>m===S.lm&&el<dim(m);
@@ -252,21 +251,33 @@ function parseFiles(){
     const rd=f=>new Promise(r=>{const fr=new FileReader();fr.onload=e=>r(new Uint8Array(e.target.result));fr.readAsArrayBuffer(f);});
     Promise.all([rd(S.files.cpv),S.files.cpc?rd(S.files.cpc):null,S.files.tag?rd(S.files.tag):null]).then(([cpvB,cpcB,tagB])=>{
       const cpvW=XLSX.read(cpvB,{type:"array"}),cpvS=cpvW.Sheets[cpvW.SheetNames[0]],cpvJ=XLSX.utils.sheet_to_json(cpvS,{header:1});
-      const mcs=[];cpvJ[0].forEach((v,i)=>{if(v&&String(v).match(/\d{2}\.\d{2}\.\d{2}/)){const p=String(v).split(".");mcs.push({col:i,mo:"20"+p[0]+"-"+p[1].padStart(2,"0")});}});
-      const mos=mcs.map(m=>m.mo),evts=[];
+      // Parse dates and detect weekly vs monthly
+      const rawDates=[];
+      cpvJ[0].forEach((v,i)=>{if(v&&String(v).match(/\d{2}\.\d{2}\.\d{2}/)){const p=String(v).split(".");rawDates.push({col:i,y:"20"+p[0],m:p[1].padStart(2,"0"),d:p[2].padStart(2,"0")});}});
+      // Detect: if first two dates are ≤7 days apart → weekly
+      let isWeekly=false;
+      if(rawDates.length>=2){
+        const d1=new Date(rawDates[0].y+"-"+rawDates[0].m+"-"+rawDates[0].d);
+        const d2=new Date(rawDates[1].y+"-"+rawDates[1].m+"-"+rawDates[1].d);
+        isWeekly=(d2-d1)/(1000*60*60*24)<=8;
+      }
+      const mcs=rawDates.map(r=>({col:r.col,mo:isWeekly?r.y+"-"+r.m+"-"+r.d:r.y+"-"+r.m}));
+      const mos=[...new Set(mcs.map(m=>m.mo))],evts=[];
       for(let r=2;r<cpvJ.length;r++){const nm=String(cpvJ[r][0]||"").trim();if(!nm||nm==="총합계")continue;
-        const md={};mcs.forEach(mc=>{md[mc.mo]=[Number(cpvJ[r][mc.col])||0,Number(cpvJ[r][mc.col+1])||0,Number(cpvJ[r][mc.col+4])||0];});
+        const md={};mcs.forEach(mc=>{const k=mc.mo;if(!md[k])md[k]=[0,0,0];md[k][0]+=Number(cpvJ[r][mc.col])||0;md[k][1]+=Number(cpvJ[r][mc.col+1])||0;md[k][2]+=Number(cpvJ[r][mc.col+4])||0;});
         evts.push({n:nm,l:dlang(nm),m:md});}
       const cpcE={};
       if(cpcB){const cW=XLSX.read(cpcB,{type:"array"}),cS=cW.Sheets[cW.SheetNames[0]],cJ=XLSX.utils.sheet_to_json(cS);
-        let curMo=null;cJ.forEach(row=>{const p=String(row['매출/SU 기간']||'');const pm=p.match(/(\d{4})\.\s*(\d+)/);if(pm)curMo=pm[1]+"-"+pm[2].padStart(2,"0");
+        let curMo=null;cJ.forEach(row=>{const p=String(row['매출/SU 기간']||'');
+          if(isWeekly){const pm=p.match(/(\d{4})\.\s*(\d+)\.\s*(\d+)/);if(pm)curMo=pm[1]+"-"+pm[2].padStart(2,"0")+"-"+pm[3].padStart(2,"0");}
+          else{const pm=p.match(/(\d{4})\.\s*(\d+)/);if(pm)curMo=pm[1]+"-"+pm[2].padStart(2,"0");}
           const ev=String(row['이벤트 제목']||'').trim();if(!ev||ev==='총계'||!curMo)return;
           if(!cpcE[ev])cpcE[ev]={};cpcE[ev][curMo]=[+row['광고 조회수']||0,+row['총 클릭수']||0,+row['광고 클릭률']||0,+row['CPC']||0,+row['총 광고비']||0,+row['전환수']||0,+row['전환가치']||0];});}
       let tagMap=null;
       if(tagB){const tW=XLSX.read(tagB,{type:"array"}),tS=tW.Sheets[tW.SheetNames[0]],tJ=XLSX.utils.sheet_to_json(tS);
         tagMap={};tJ.forEach(row=>{const kw=String(row['분석 단위']||'').trim();if(!kw)return;const td={};
           Object.keys(row).filter(k=>k!=='분석 단위').forEach(col=>{const cm=col.match(/(\d{4})\.\s*(\d+)/);if(cm)td[cm[1]+"-"+cm[2].padStart(2,"0")]=Number(row[col])||0;});tagMap[kw]=td;});}
-      res({hospital:S.hn||"병원",months:mos,events:evts,cpc:cpcE,tag:tagMap});
+      res({hospital:S.hn||"병원",months:mos,events:evts,cpc:cpcE,tag:tagMap,mode:isWeekly?"weekly":"monthly"});
     }).catch(rej);});
 }
 
@@ -296,9 +307,9 @@ async function rHome(){
 function rDash(){
   const co=S.co,ms=S.ms,lm=S.lm,l3=ms.slice(-3);
   let h=`<button class="bbtn" onclick="goHome()">← 병원 목록</button>`;
-  h+=`<div class="hdr"><div><div style="font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px">PERFORMANCE REPORT</div><h1>${esc(D.hospital)}</h1><div style="font-size:11px;color:#9ca3af;margin-top:2px">${fM(ms[0])} ~ ${fM(lm)} ${D.tag?`· 📈 시장 ${Object.keys(D.tag).length}개 키워드`:"· <span style='color:#ef4444'>⚠️ 태그SU 없음</span>"}</div></div><div style="display:flex;gap:8px;align-items:center"><button onclick="exportPDF()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">📄 PDF</button><button onclick="copyShareLink()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">🔗 링크</button><button onclick="exportJSON()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">📦 내보내기</button><button onclick="saveCurrent()" style="padding:7px 16px;border-radius:8px;border:1px solid ${isDirty?"#6366f1":"#e5e7eb"};background:${isDirty?"#6366f1":"#fff"};color:${isDirty?"#fff":"#6b7280"};font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">💾 ${isDirty?"저장하기":"저장됨"}</button></div></div>`;
-  h+=`<div class="ctrl"><label class="tg"><input type="checkbox" id="pt" ${S.proj?"checked":""} onchange="S.proj=this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">예상실적 보정</span></label><div class="dv"></div><div class="cg"><span class="cl">병원</span><input type="number" class="ni" id="ce" value="${S.cpvE}" min="1" max="31"><span class="cl">일</span></div><div class="cg"><span class="cl">시장</span><input type="number" class="ni" id="me" value="${S.mktE}" min="1" max="31"><span class="cl">일</span></div><div class="dv"></div><div class="cg"><span class="cl">기준월</span><select class="ni" style="width:auto;padding:3px 6px;font-size:10px" onchange="S.baseMo=this.value;R()">${D.months.map(m=>`<option value="${m}" ${m===S.baseMo?"selected":""}>${fM(m)}</option>`).join("")}</select></div><div class="dv"></div><div class="cg"><span class="cl">MOM</span><input type="number" class="ni" id="momM" value="${S.momMonths}" min="2" max="${ms.length}" style="width:32px"><span class="cl">개월</span></div><div class="dv"></div><label class="tg"><input type="checkbox" id="trToggle" ${S.showTr?"checked":""} onchange="S.showTr=this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">번역 보기</span></label><div class="dv"></div><label class="tg"><input type="checkbox" ${!S.showCPA?"checked":""} onchange="S.showCPA=!this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">병원용</span></label><div class="dv"></div><span onclick="document.getElementById('tagUp').click()" style="font-size:10px;color:${D.tag?'#059669':'#dc2626'};cursor:pointer;font-weight:600">${D.tag?'📈 시장데이터 ✓':'📈 태그SU 업로드'}</span><input type="file" id="tagUp" accept=".xlsx,.xls" style="display:none" onchange="onTagUpload(this)"></div>`;
-  h+=`<div class="tabs">${[["overview","종합"],["events","이벤트별"],["cpc","CPC"],["mom","MOM"]].map(([k,l])=>`<button class="tb ${S.tab===k?"a":""}" onclick="SS({tab:'${k}'})">${l}</button>`).join("")}</div>`;
+  h+=`<div class="hdr"><div><div style="font-size:10px;color:#6366f1;font-weight:700;letter-spacing:2px">${D.mode==="weekly"?"WEEKLY":"PERFORMANCE"} REPORT</div><h1>${esc(D.hospital)}${D.mode==="weekly"?` <span style="font-size:12px;padding:3px 8px;border-radius:6px;background:#fef3c7;color:#92400e;vertical-align:middle">📅 주차별</span>`:""}</h1><div style="font-size:11px;color:#9ca3af;margin-top:2px">${fM(ms[0])} ~ ${fM(lm)} ${D.tag?`· 📈 시장 ${Object.keys(D.tag).length}개 키워드`:"· <span style='color:#ef4444'>⚠️ 태그SU 없음</span>"}</div></div><div style="display:flex;gap:8px;align-items:center"><button onclick="exportPDF()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">📄 PDF</button><button onclick="copyShareLink()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">🔗 링크</button><button onclick="exportJSON()" style="padding:7px 12px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">📦 내보내기</button><button onclick="saveCurrent()" style="padding:7px 16px;border-radius:8px;border:1px solid ${isDirty?"#6366f1":"#e5e7eb"};background:${isDirty?"#6366f1":"#fff"};color:${isDirty?"#fff":"#6b7280"};font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">💾 ${isDirty?"저장하기":"저장됨"}</button></div></div>`;
+  h+=`<div class="ctrl">${D.mode!=="weekly"?`<label class="tg"><input type="checkbox" id="pt" ${S.proj?"checked":""} onchange="S.proj=this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">예상실적 보정</span></label><div class="dv"></div><div class="cg"><span class="cl">병원</span><input type="number" class="ni" id="ce" value="${S.cpvE}" min="1" max="31"><span class="cl">일</span></div><div class="cg"><span class="cl">시장</span><input type="number" class="ni" id="me" value="${S.mktE}" min="1" max="31"><span class="cl">일</span></div><div class="dv"></div>`:""}<div class="cg"><span class="cl">${D.mode==="weekly"?"기준주":"기준월"}</span><select class="ni" style="width:auto;padding:3px 6px;font-size:10px" onchange="S.baseMo=this.value;R()">${D.months.map(m=>`<option value="${m}" ${m===S.baseMo?"selected":""}>${fM(m)}</option>`).join("")}</select></div><div class="dv"></div><div class="cg"><span class="cl">${D.mode==="weekly"?"WoW":"MOM"}</span><input type="number" class="ni" id="momM" value="${S.momMonths}" min="2" max="${ms.length}" style="width:32px"><span class="cl">${D.mode==="weekly"?"주":"개월"}</span></div><div class="dv"></div><label class="tg"><input type="checkbox" id="trToggle" ${S.showTr?"checked":""} onchange="S.showTr=this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">번역 보기</span></label><div class="dv"></div><label class="tg"><input type="checkbox" ${!S.showCPA?"checked":""} onchange="S.showCPA=!this.checked;R()"><span class="tk"></span><span style="font-size:10px;color:#6b7280">병원용</span></label><div class="dv"></div><span onclick="document.getElementById('tagUp').click()" style="font-size:10px;color:${D.tag?'#059669':'#dc2626'};cursor:pointer;font-weight:600">${D.tag?'📈 시장데이터 ✓':'📈 태그SU 업로드'}</span><input type="file" id="tagUp" accept=".xlsx,.xls" style="display:none" onchange="onTagUpload(this)"></div>`;
+  h+=`<div class="tabs">${[["overview","종합"],["events","이벤트별"],["cpc","CPC"],["mom",D.mode==="weekly"?"WoW":"MOM"]].map(([k,l])=>`<button class="tb ${S.tab===k?"a":""}" onclick="SS({tab:'${k}'})">${l}</button>`).join("")}</div>`;
   if(S.tab!=="cpc"){const cs=["ALL",...new Set(D.events.map(e=>e.l))];h+=`<div class="cf">${cs.map(c=>`<button class="cb ${co.has(c)?"a":""}" onclick="toggleCo('${c}')">${CL[c]||c}</button>`).join("")}</div>`;}
 
   // ===== OVERVIEW =====
@@ -314,8 +325,9 @@ function rDash(){
     // ===== YoY / MoM KPI cards =====
     const yoyMonth=S.ms.find(m=>{const[y,mo]=m.split("-");return(+y-1)+"-"+mo===ms.find(pm=>pm===(+y-1)+"-"+mo);});
     // Find YoY pairs: for each recent month, find same month last year
-    const recentMs=ms.slice(-4);
-    h+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="st2" style="margin:0">📊 성과 요약</div><div class="cf" style="margin:0">${["mom:전월비","yoy:전년비","both:전월+전년"].map(s=>{const[k,l]=s.split(":");return`<button class="cb ${(S.kpiMode||"mom")===k?"a":""}" onclick="SS({kpiMode:'${k}'})">${l}</button>`;}).join("")}</div></div>`;
+    const isW=D.mode==="weekly",pLabel=isW?"전주비":"전월비",yLabel=isW?"동기비":"전년비";
+    const recentCount=isW?8:4;const recentMs=ms.slice(-recentCount);
+    h+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="st2" style="margin:0">📊 성과 요약</div><div class="cf" style="margin:0">${isW?`<button class="cb a">${pLabel}</button>`:[`mom:${pLabel}`,`yoy:${yLabel}`,`both:${pLabel}+${yLabel}`].map(s=>{const[k,l]=s.split(":");return`<button class="cb ${(S.kpiMode||"mom")===k?"a":""}" onclick="SS({kpiMode:'${k}'})">${l}</button>`;}).join("")}</div></div>`;
     h+=`<div class="grid g4" style="margin-bottom:14px">`;
     recentMs.forEach(m=>{
       const t=mTot(m,co);
@@ -332,16 +344,16 @@ function rDash(){
       // OV row
       if(S.showOV){
         h+=`<div class="kl">${fM(m)} 조회수</div><div style="font-size:22px;font-weight:800;font-family:'JetBrains Mono';letter-spacing:-1px;margin:2px 0;color:#6366f1">${fN(t.v)}</div>`;
-        if(mode==="mom")h+=`<div class="kf" style="font-size:10px">${momV} 전월비</div>`;
-        else if(mode==="yoy")h+=`<div class="kf" style="font-size:10px">${yoyV} 전년비</div>`;
-        else h+=`<div class="kf" style="font-size:10px">${momV} <span style="color:#9ca3af">전월</span> ${yoyV} <span style="color:#9ca3af">전년</span></div>`;
+        if(mode==="mom")h+=`<div class="kf" style="font-size:10px">${momV} ${pLabel}</div>`;
+        else if(mode==="yoy")h+=`<div class="kf" style="font-size:10px">${yoyV} ${yLabel}</div>`;
+        else h+=`<div class="kf" style="font-size:10px">${momV} <span style="color:#9ca3af">${isW?"전주":"전월"}</span> ${yoyV} <span style="color:#9ca3af">${isW?"동기":"전년"}</span></div>`;
         h+=`<div style="height:1px;background:#e5e7eb;margin:6px 0"></div>`;
       }
       // DB row
       h+=`<div class="kl">${S.showOV?"":""+fM(m)+" "}DB</div><div style="font-size:${S.showOV?'22':'28'}px;font-weight:900;font-family:'JetBrains Mono';letter-spacing:-1px;margin:2px 0">${fN(t.d)}<span style="font-size:12px;color:#9ca3af;font-weight:500">명</span></div>`;
-      if(mode==="mom")h+=`<div class="kf" style="font-size:10px">${momD} 전월비</div>`;
-      else if(mode==="yoy")h+=`<div class="kf" style="font-size:10px">${yoyD} 전년비</div>`;
-      else h+=`<div class="kf" style="font-size:10px">${momD} <span style="color:#9ca3af">전월</span> ${yoyD} <span style="color:#9ca3af">전년</span></div>`;
+      if(mode==="mom")h+=`<div class="kf" style="font-size:10px">${momD} ${pLabel}</div>`;
+      else if(mode==="yoy")h+=`<div class="kf" style="font-size:10px">${yoyD} ${yLabel}</div>`;
+      else h+=`<div class="kf" style="font-size:10px">${momD} <span style="color:#9ca3af">${isW?"전주":"전월"}</span> ${yoyD} <span style="color:#9ca3af">${isW?"동기":"전년"}</span></div>`;
       h+=`<div style="font-size:9px;color:#9ca3af;margin-top:3px">CVR ${fP(t.r)}</div>`;
       // 광고비 row
       h+=`<div style="height:1px;background:#f3f4f6;margin:4px 0"></div>`;
@@ -495,10 +507,10 @@ function rDash(){
     const tots=momMs.map(m=>mTot(m,"ALL"));
     const cpvTots=momMs.map(m=>cpvMTot(m,"ALL"));
     const cpcTots=momMs.map(m=>cpcMT(m,"ALL"));
-    h+=`<div class="st2">MOM 변화 <span style="font-size:11px;color:#9ca3af;font-weight:400">최근 ${S.momMonths}개월</span></div>`;
+    h+=`<div class="st2">${D.mode==="weekly"?"WoW":"MOM"} 변화 <span style="font-size:11px;color:#9ca3af;font-weight:400">최근 ${S.momMonths}${D.mode==="weekly"?"주":"개월"}</span></div>`;
     function momT(title,rows,detailId,detailRows){
       let t=`<div class="mom"><h4>${title}</h4><table class="MT"><thead><tr><th>구분</th>`;
-      momMs.forEach(m=>t+=`<th>${fM(m)}</th>`);t+=`<th>전월비</th></tr></thead><tbody>`;
+      momMs.forEach(m=>t+=`<th>${fM(m)}</th>`);t+=`<th>${D.mode==="weekly"?"전주비":"전월비"}</th></tr></thead><tbody>`;
       rows.forEach(([lb,vals,fmt,inv])=>{t+=`<tr><td>${lb}</td>`;vals.forEach((v,i)=>t+=`<td${i===mL?' class="hl"':""}>${fmt(v)}</td>`);const l=vals[mL],p=vals[mP];t+=`<td>${p?(inv?bgInv:bg)((l-p)/p*100):""}</td></tr>`;});
       if(detailId&&detailRows){
         const isOpen=S.momDetail.has(detailId);
@@ -673,7 +685,7 @@ function onTagUpload(inp){
       saveTag(tagMap);
       isDirty=true;
       R();
-    }catch(err){alert("태그 파일 파싱 오류: "+err);}
+    }catch(err){showToast('⚠️ 파일 오류','태그 파일 파싱 중 오류: '+err);}
   };
   fr.readAsArrayBuffer(inp.files[0]);
 }
@@ -931,32 +943,29 @@ function openPrintWindow(html){
 function copyShareLink(){
   if(!D)return;
   const url=window.location.origin+window.location.pathname+'?hospital='+encodeURIComponent(D.hospital);
-  navigator.clipboard.writeText(url).then(()=>alert('링크 복사됨!\n'+url)).catch(()=>{prompt('이 링크를 복사하세요:',url);});
+  navigator.clipboard.writeText(url).then(()=>showToast('🔗 링크 복사됨',url)).catch(()=>{prompt('이 링크를 복사하세요:',url);});
+}
+function showToast(msg,sub){
+  const d=document.createElement('div');d.innerHTML=`<div style="position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:1000;display:flex;align-items:center;justify-content:center" onclick="this.remove()"><div style="background:#fff;border-radius:14px;padding:24px 28px;width:340px;box-shadow:0 20px 60px rgba(0,0,0,.12)" onclick="event.stopPropagation()"><div style="font-size:15px;font-weight:700;margin-bottom:6px">${msg}</div>${sub?`<div style="font-size:12px;color:#6b7280;line-height:1.7">${sub}</div>`:""}<button onclick="this.closest('[style*=fixed]').remove()" style="margin-top:14px;width:100%;padding:10px;border-radius:10px;border:none;background:#6366f1;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR'">확인</button></div></div>`;
+  document.body.appendChild(d);
 }
 async function exportJSON(){
   if(!D)return;
   const jsonStr=JSON.stringify(D);
   const fileName=D.hospital+'_report.json';
-  // Try File System Access API (allows saving directly to iCloud Drive)
   if(window.showSaveFilePicker){
     try{
       const handle=await window.showSaveFilePicker({suggestedName:fileName,types:[{description:'JSON',accept:{'application/json':['.json']}}]});
       const writable=await handle.createWritable();
       await writable.write(jsonStr);await writable.close();
-      alert('✓ 저장 완료!\niCloud Drive에 저장했다면 다른 기기에서 바로 불러올 수 있습니다.');
+      showToast('✓ 저장 완료','iCloud Drive를 사용하는 기기끼리 이 파일을 공유할 수 있습니다.');
       return;
     }catch(e){if(e.name==='AbortError')return;}
   }
-  // Fallback: regular download
   const blob=new Blob([jsonStr],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=fileName;a.click();URL.revokeObjectURL(a.href);
-  // Check if likely Mac (for iCloud message)
-  if(navigator.platform?.includes('Mac')||navigator.userAgent?.includes('Mac')){
-    alert('📦 다운로드 완료!\n\n💡 iCloud 동기화 팁:\n① 다운로드된 파일을 iCloud Drive로 이동\n② 다른 Mac에서 홈화면 → "📦 JSON 가져오기"로 불러오기\n\n※ Safari는 저장 위치 선택이 안 되므로, 다운로드 폴더에서 iCloud Drive로 직접 이동해주세요.');
-  } else {
-    alert('📦 다운로드 완료!\n\n⚠️ iCloud Drive는 Apple 기기에서만 사용 가능합니다.\n다른 방법: 다운로드된 .json 파일을 이메일/메신저로 전송 후 가져오기');
-  }
+  showToast('📦 내보내기 완료','iCloud Drive를 사용하는 기기끼리 이 파일을 공유할 수 있습니다.<br><br>① 다운로드된 파일을 iCloud Drive에 저장<br>② 다른 기기 홈화면 → "📦 JSON 가져오기"');
 }
 function importJSON(inp){
   if(!inp.files[0])return;
@@ -964,11 +973,11 @@ function importJSON(inp){
   fr.onload=function(e){
     try{
       const data=JSON.parse(e.target.result);
-      if(!data.hospital||!data.months||!data.events){alert('유효하지 않은 리포트 파일입니다.');return;}
+      if(!data.hospital||!data.months||!data.events){showToast('⚠️ 파일 오류','유효하지 않은 리포트 파일입니다.');return;}
       D=data;S.hn=data.hospital;S.scr="dash";isDirty=true;
       saveH(data.hospital,data);
       R();
-    }catch(err){alert('파일 파싱 오류: '+err);}
+    }catch(err){showToast('⚠️ 파일 오류','파싱 중 오류가 발생했습니다: '+err);}
   };
   fr.readAsText(inp.files[0]);
 }
