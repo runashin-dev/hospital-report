@@ -558,7 +558,7 @@ function rCh(){
   Object.values(S.ch).forEach(c=>{try{c.destroy();}catch(e){}});S.ch={};if(!D)return;
   const co=S.co,lm=S.lm;
   // For weekly mode, limit chart to recent N periods to avoid clutter
-  const chartMs=D.mode==="weekly"?S.ms.slice(-Math.max(S.momMonths,12)):S.ms;
+  const chartMs=D.mode==="weekly"?S.ms.slice(-S.momMonths):S.ms;
   const ms=chartMs;
   const sty={grid:{color:"#f3f4f6"},tick:{color:"#9ca3af",font:{size:9,family:"'JetBrains Mono'"}},tt:{backgroundColor:"#1f2937",borderColor:"#374151",borderWidth:1,titleColor:"#9ca3af",bodyColor:"#f9fafb",padding:7,cornerRadius:5}};
   const lbs=ms.map(fM);
