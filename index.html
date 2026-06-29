@@ -326,7 +326,7 @@ function rDash(){
     const yoyMonth=S.ms.find(m=>{const[y,mo]=m.split("-");return(+y-1)+"-"+mo===ms.find(pm=>pm===(+y-1)+"-"+mo);});
     // Find YoY pairs: for each recent month, find same month last year
     const isW=D.mode==="weekly",pLabel=isW?"전주비":"전월비",yLabel=isW?"동기비":"전년비";
-    const recentCount=isW?8:4;const recentMs=ms.slice(-recentCount);
+    const recentCount=isW?S.momMonths:4;const recentMs=ms.slice(-recentCount);
     h+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="st2" style="margin:0">📊 성과 요약</div><div class="cf" style="margin:0">${isW?`<button class="cb a">${pLabel}</button>`:[`mom:${pLabel}`,`yoy:${yLabel}`,`both:${pLabel}+${yLabel}`].map(s=>{const[k,l]=s.split(":");return`<button class="cb ${(S.kpiMode||"mom")===k?"a":""}" onclick="SS({kpiMode:'${k}'})">${l}</button>`;}).join("")}</div></div>`;
     h+=`<div class="grid g4" style="margin-bottom:14px">`;
     recentMs.forEach(m=>{
@@ -556,7 +556,10 @@ function rDash(){
 
 function rCh(){
   Object.values(S.ch).forEach(c=>{try{c.destroy();}catch(e){}});S.ch={};if(!D)return;
-  const co=S.co,ms=S.ms,lm=S.lm;
+  const co=S.co,lm=S.lm;
+  // For weekly mode, limit chart to recent N periods to avoid clutter
+  const chartMs=D.mode==="weekly"?S.ms.slice(-Math.max(S.momMonths,12)):S.ms;
+  const ms=chartMs;
   const sty={grid:{color:"#f3f4f6"},tick:{color:"#9ca3af",font:{size:9,family:"'JetBrains Mono'"}},tt:{backgroundColor:"#1f2937",borderColor:"#374151",borderWidth:1,titleColor:"#9ca3af",bodyColor:"#f9fafb",padding:7,cornerRadius:5}};
   const lbs=ms.map(fM);
   const c1=document.getElementById("c1");
