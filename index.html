@@ -432,6 +432,13 @@ function rDash(){
     const allEvs=D.events.filter(e=>coMatch(e.l)).map(e=>({op:getOpType(e.n)}));
     const sCount=allEvs.filter(e=>e.op==="S").length,nCount=allEvs.filter(e=>e.op==="N").length,uCount=allEvs.filter(e=>e.op==="?").length;
     h+=`<div class="st2">이벤트별 성과</div><div class="sub2">카드 클릭 → 상세</div>`;
+    // TOP 5 인기이벤트 DB 추이 차트
+    const top5evs=[...evs].filter(e=>e.cur.d>0).sort((a,b)=>b.cur.d-a.cur.d).slice(0,5);
+    if(top5evs.length){
+      const t5ms=ms.slice(-S.momMonths);
+      const T5_COLORS=["#6366f1","#06b6d4","#10b981","#f59e0b","#ec4899"];
+      h+=`<div class="CC" style="margin-bottom:14px"><h3>🏆 인기 이벤트 TOP ${top5evs.length} — 최근 ${t5ms.length}${D.mode==="weekly"?"주":"개월"} DB 추이</h3><div style="height:200px"><canvas id="top5ch"></canvas></div></div>`;
+    }
     h+=`<div class="cf"><button class="cb ${S.opFilter==="ALL"?"a":""}" onclick="SS({opFilter:'ALL'})">전체 (${allEvs.length})</button><button class="cb ${S.opFilter==="N"?"a":""}" onclick="SS({opFilter:'N'})">💉 시술 (${nCount})</button><button class="cb ${S.opFilter==="S"?"a":""}" onclick="SS({opFilter:'S'})">🔪 수술 (${sCount})</button>${uCount?`<button class="cb ${S.opFilter==="?"?"a":""}" onclick="SS({opFilter:'?'})">❓ 미분류 (${uCount})</button>`:""}</div>`;
     h+=`<div class="cf">${["db:DB순","growth:성장률순"].map(s=>{const[k,l]=s.split(":");return`<button class="cb ${S.sort===k?"a":""}" onclick="SS({sort:'${k}'})">${l}</button>`;}).join("")}</div>`;
     evs.forEach((ev,ei)=>{
@@ -653,6 +660,21 @@ function rCh(){
         x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:9}}},y:{position:"left",grid:sty.grid,ticks:{...sty.tick}},
         y1:{position:"right",grid:{drawOnChartArea:false},ticks:{...sty.tick,callback:v=>v.toFixed(1)+"%"}}}}});
     });
+  }
+  // TOP 5 인기이벤트 chart
+  const top5ch=document.getElementById("top5ch");
+  if(top5ch){
+    const T5_COLORS=["#6366f1","#06b6d4","#10b981","#f59e0b","#ec4899"];
+    const t5ms=ms.slice(-S.momMonths);
+    const t5lbs=t5ms.map(fM);
+    const allEvsSorted=D.events.filter(e=>coMatch(e.l)).map(e=>({...e,cur:evT(e,lm)})).filter(e=>e.cur.d>0).sort((a,b)=>b.cur.d-a.cur.d).slice(0,5);
+    const t5datasets=allEvsSorted.map((ev,i)=>{
+      const isKR=ev.l==="KR",tr=isKR?"":autoTr(ev.n);
+      const label=S.showTr&&tr?tr.slice(0,12):ev.n.length>12?ev.n.slice(0,12)+"…":ev.n;
+      return{label,data:t5ms.map(m=>evT(ev,m).d),backgroundColor:T5_COLORS[i]+"40",borderColor:T5_COLORS[i],borderWidth:1,borderRadius:4};
+    });
+    const t5dl={id:'t5dl',afterDatasetsDraw(chart){const ctx=chart.ctx;chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);meta.data.forEach((bar,i)=>{const v=ds.data[i];if(!v)return;ctx.save();ctx.font="bold 9px 'JetBrains Mono'";ctx.fillStyle=T5_COLORS[di];ctx.textAlign="center";ctx.fillText(v,bar.x,bar.y-4);ctx.restore();});});}};
+    S.ch.top5=new Chart(top5ch.getContext("2d"),{type:"bar",plugins:[t5dl],data:{labels:t5lbs,datasets:t5datasets},options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{position:"bottom",labels:{color:"#6b7280",font:{size:9},boxWidth:8,padding:6}},tooltip:{...sty.tt,callbacks:{label:c=>c.dataset.label+": "+fN(c.raw)+"건"}}},scales:{x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:11,weight:"bold"}}},y:{grid:sty.grid,ticks:sty.tick}}}});
   }
   // CPC charts
   const cpcBar=document.getElementById("cpcBar");
