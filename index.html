@@ -167,42 +167,49 @@ function getOpType(evName){
 function findTagKw(evName){
   if(!D||!D.tag)return"";
   const clean=evName.replace(/AI분석진단/gi,"").replace(/히트\s*/g,"").replace(/추가금\s*없는\s*/g,"").replace(/더나\s*/g,"").replace(/DERNA\s*/g,"").trim();
-  const tagKeys=Object.keys(D.tag);let best="",bL=0;
-  // ① Direct longest substring
-  for(const kw of tagKeys){if(kw.length>=2&&clean.includes(kw)&&kw.length>bL){best=kw;bL=kw.length;}}
-  if(best)return best;
+  const tagKeys=Object.keys(D.tag);
+  // ① Direct tag match: score = tag accuracy (tag_len / containing_word_len), then position
+  const matches=[];
+  for(const kw of tagKeys){if(kw.length>=2){const pos=clean.indexOf(kw);if(pos>=0){
+    // Find the word that contains this tag match
+    const before=clean.lastIndexOf(' ',pos),after=clean.indexOf(' ',pos+kw.length);
+    const wordStart=before<0?0:before+1,wordEnd=after<0?clean.length:after;
+    const wordLen=wordEnd-wordStart;
+    const accuracy=kw.length/Math.max(wordLen,kw.length); // 1.0 = exact word match
+    matches.push({kw,pos,len:kw.length,acc:accuracy});
+  }}}
+  if(matches.length){matches.sort((a,b)=>b.acc-a.acc||a.pos-b.pos);return matches[0].kw;}
   // ② Space-removed
-  const cNS=clean.replace(/\s+/g,"");
-  for(const kw of tagKeys){if(kw.length>=2&&cNS.includes(kw.replace(/\s+/g,""))&&kw.length>bL){best=kw;bL=kw.length;}}
-  if(best)return best;
-  // ③ Word = tag keyword
+  const cNS=clean.replace(/\s+/g,"");let best="",bL=0;
+  const matches2=[];
+  for(const kw of tagKeys){if(kw.length>=2){const kwNS=kw.replace(/\s+/g,"");const pos=cNS.indexOf(kwNS);if(pos>=0){
+    const before=cNS.lastIndexOf(' ',pos),after=cNS.indexOf(' ',pos+kwNS.length);
+    const ws=before<0?0:before+1,we=after<0?cNS.length:after;
+    const acc=kwNS.length/Math.max(we-ws,kwNS.length);
+    matches2.push({kw,pos,len:kw.length,acc});}}}
+  if(matches2.length){matches2.sort((a,b)=>b.acc-a.acc||a.pos-b.pos);return matches2[0].kw;}
+  // ③ Word = tag keyword (first word that matches wins)
   const words=clean.replace(/[,/_·x]/g," ").split(/\s+/).filter(p=>p.length>=2);
   for(const w of words){if(tagKeys.includes(w))return w;}
-  // ④ Group name match (min 3 chars overlap)
-  let bestGL=0;best="";
+  // ④ Group name match (first word match wins)
   for(const w of words){for(const[g,t]of Object.entries(CATMAP.gt)){
     if(g.length<3)continue;
-    if(g.includes(w)&&w.length>=3&&w.length>bestGL){best=t;bestGL=w.length;}
-    if(w.includes(g)&&g.length>bestGL){best=t;bestGL=g.length;}}}
-  if(best&&bestGL>=3)return best;
-  // ⑤ Category name match
-  best="";bL=0;
+    if((g.includes(w)&&w.length>=3)||(w.includes(g)&&g.length>=3))return t;}}
+  // ⑤ Category name match (first word match wins)
   for(const w of words){for(const[c,t]of Object.entries(CATMAP.ct)){
-    if(c.includes(w)&&w.length>=3&&w.length>bL){best=t;bL=w.length;}
-    if(w.includes(c)&&c.length>=2&&c.length>bL){best=t;bL=c.length;}}}
-  if(best)return best;
+    if((c.includes(w)&&w.length>=3)||(w.includes(c)&&c.length>=2))return t;}}
   // ⑥ Multi-word scoring: tag with most event-word matches
   let bestScore=0;best="";
   for(const kw of tagKeys){let score=0;for(const w of words){if(w.length>=2&&kw.includes(w))score+=w.length;}
     if(score>bestScore){bestScore=score;best=kw;}}
   if(best&&bestScore>=3)return best;
-  // ⑦ Substring decomposition: try 3+ char substrings, prefer shortest (most specific) tag
+  // ⑦ Substring decomposition
   for(const w of words){if(w.length<4)continue;
     for(let len=w.length;len>=3;len--){for(let i=0;i<=w.length-len;i++){
       const sub=w.slice(i,i+len);let bTag="",bTL=9999;
       for(const kw of tagKeys){if(kw.includes(sub)&&kw.length<bTL){bTag=kw;bTL=kw.length;}}
       if(bTag)return bTag;}}}
-  // ⑧ Manual fallback for keywords not in tag/category data
+  // ⑧ Manual fallback
   const FB={"염증":"여드름주사","여드름":"여드름압출","모공":"아쿠아필링","탄력":"콜라겐주사","수분":"물광주사","재생":"PRP피부재생술","미백":"레이저토닝","기미":"레이저토닝","색소":"레이저토닝","턱끝":"턱끝보톡스","이중턱":"이중턱지방흡입","팔자":"팔자주름필러","귀족":"귀족수술(보형물)","다이어트":"다이어트한약","체형":"윤곽주사","동안":"콜라겐주사","안티에이징":"콜라겐주사","볼처짐":"안면거상술","처짐":"실리프팅","스킨케어":"아쿠아필링","피부관리":"아쿠아필링","흉터":"흉터제거레이저","켈로이드":"캘로이드주사","제모":"겨드랑이제모","문신":"문신제거","반영구":"문신제거","치아":"치아미백","hair":"머리모발이식","acne":"여드름압출","pore":"아쿠아필링","whitening":"레이저토닝","aging":"콜라겐주사","diet":"다이어트한약","scar":"흉터제거레이저"};
   for(const w of words){for(const[k,v]of Object.entries(FB)){if(w.includes(k)||k.includes(w)){if(D.tag[v])return v;}}}
   return"";
@@ -593,22 +600,22 @@ function rCh(){
         ctx.save();ctx.font="bold 10px 'JetBrains Mono'";ctx.fillStyle="#0891b2";ctx.textAlign="center";ctx.fillText(fN(v),bar.x,bar.y-6);ctx.restore();
       });}};
     const datasets=[];
-    if(S.showOV)datasets.push({label:"조회수",data:tots.map(t=>t.v),backgroundColor:"rgba(99,102,241,.2)",borderColor:"#6366f1",borderWidth:1,borderRadius:4,yAxisID:"y"});
-    datasets.push({label:"DB",data:tots.map(t=>t.d),backgroundColor:"rgba(8,145,178,.25)",borderColor:"#0891b2",borderWidth:1,borderRadius:4,yAxisID:S.showOV?"y1":"y"});
+    // Get raw (non-projected) totals for bar display
+    const origProj=S.proj;S.proj=false;
+    const rawTots=ms.map(m=>mTot(m,co));
+    S.proj=origProj;
+    if(S.showOV)datasets.push({label:"조회수",data:rawTots.map(t=>t.v),backgroundColor:"rgba(99,102,241,.2)",borderColor:"#6366f1",borderWidth:1,borderRadius:4,yAxisID:"y"});
+    datasets.push({label:"DB",data:rawTots.map(t=>t.d),backgroundColor:"rgba(8,145,178,.25)",borderColor:"#0891b2",borderWidth:1,borderRadius:4,yAxisID:S.showOV?"y1":"y"});
     // Projected bar extension (only when projection is ON and monthly mode)
-    if(S.proj&&D.mode!=="weekly"){
-      const lastM=ms[ms.length-1],daysInM=dim(lastM),el=S.cpvE;
-      if(el<daysInM){
-        const projTotal=Math.round(tots[tots.length-1].d/el*daysInM);
-        const actualLast=tots[tots.length-1].d;
-        const increment=projTotal-actualLast;
-        if(increment>0){
-          const projData=ms.map((_,i)=>i===ms.length-1?increment:0);
-          datasets.push({label:"예상 추가분",data:projData,backgroundColor:"rgba(245,158,11,.35)",borderColor:"#f59e0b",borderWidth:1,borderRadius:4,borderDash:[4,2],yAxisID:S.showOV?"y1":"y",stack:"db"});
-          // Make DB bar stackable too
-          const dbDs=datasets.find(d=>d.label==="DB");
-          if(dbDs)dbDs.stack="db";
-        }
+    if(origProj&&D.mode!=="weekly"){
+      const rawLast=rawTots[rawTots.length-1].d;
+      const projLast=tots[tots.length-1].d; // already has projection applied
+      const increment=projLast-rawLast;
+      if(increment>0){
+        const projData=ms.map((_,i)=>i===ms.length-1?increment:0);
+        datasets.push({label:"예상 추가분",data:projData,backgroundColor:"rgba(245,158,11,.35)",borderColor:"#f59e0b",borderWidth:1,borderRadius:4,borderDash:[4,2],yAxisID:S.showOV?"y1":"y",stack:"db"});
+        const dbDs=datasets.find(d=>d.label==="DB");
+        if(dbDs)dbDs.stack="db";
       }
     }
     const scales={x:{grid:{display:false},ticks:{color:"#6b7280",font:{size:10}}}};
