@@ -230,7 +230,7 @@ function mkSVG(kw){
 let D=null,savedList=[],isDirty=false;
 // Auto-calculate elapsed days from today's date
 function autoElapsed(){const d=new Date();return Math.max(1,d.getDate()-1);}
-let S={scr:"home",tab:"overview",co:new Set(["ALL"]),sort:"db",exp:new Set(),proj:true,cpvE:autoElapsed(),mktE:autoElapsed(),ch:{},hn:"",statusMsg:"",statusType:"",files:{cpv:null,cpc:null,tag:null},showTr:false,showComments:false,showCPA:true,showOV:true,momDetail:new Set(),momMonths:3,opFilter:"ALL",baseMo:null};
+let S={scr:"home",tab:"overview",co:new Set(["ALL"]),sort:"db",exp:new Set(),proj:true,cpvE:autoElapsed(),mktE:autoElapsed(),ch:{},hn:"",statusMsg:"",statusType:"",files:{cpv:null,cpc:null,tag:null},showTr:false,showComments:false,showCPA:true,showOV:true,momDetail:new Set(),momMonths:3,opFilter:"ALL",baseMo:null,cpcView:"event"};
 function coMatch(lang){return S.co.has("ALL")||S.co.has(lang);}
 function init(){if(!D)return;
   const allMs=D.months;
@@ -240,7 +240,8 @@ function init(){if(!D)return;
   S.lm=S.baseMo;S.L=S.ms.length-1;S.P=S.ms.length-2;
   S.projMonth=allMs[allMs.length-1];
   if(D.mode==="weekly"){S.proj=false;if(S.momMonths<4)S.momMonths=8;}
-  D.events.forEach(ev=>{ev.l=dlang(ev.n);});
+  // Re-detect language only for old format (new format has exact country from rr_biz)
+  if(!D.hasExactCountry)D.events.forEach(ev=>{ev.l=dlang(ev.n);});
 }
 const isP=(m,el)=>m===S.lm&&el<dim(m);
 const prj=(v,el,m)=>{const d=dim(m);return(!el||el>=d)?v:Math.round(v/el*d)};
@@ -258,10 +259,14 @@ function parseFiles(){
     const rd=f=>new Promise(r=>{const fr=new FileReader();fr.onload=e=>r(new Uint8Array(e.target.result));fr.readAsArrayBuffer(f);});
     Promise.all([rd(S.files.cpv),S.files.cpc?rd(S.files.cpc):null,S.files.tag?rd(S.files.tag):null]).then(([cpvB,cpcB,tagB])=>{
       const cpvW=XLSX.read(cpvB,{type:"array"}),cpvS=cpvW.Sheets[cpvW.SheetNames[0]],cpvJ=XLSX.utils.sheet_to_json(cpvS,{header:1});
-      // Parse dates and detect weekly vs monthly
+      // Detect new format: row1 col0 = "rr_biz"
+      const isNewFmt=String(cpvJ[1]&&cpvJ[1][0]||"").toLowerCase().includes("rr_biz");
+      const dataColOffset=isNewFmt?2:1; // new: data starts col2, old: col1
+      const nameCol=isNewFmt?1:0;
+      const COUNTRY_MAP={"JP_CB":"JP","US":"EN","KR":"KR","JP":"JP","EN":"EN","TW":"TW","TH":"TH","CN":"CN"};
+      // Parse dates
       const rawDates=[];
       cpvJ[0].forEach((v,i)=>{if(v&&String(v).match(/\d{2}\.\d{2}\.\d{2}/)){const p=String(v).split(".");rawDates.push({col:i,y:"20"+p[0],m:p[1].padStart(2,"0"),d:p[2].padStart(2,"0")});}});
-      // Detect: if first two dates are ≤7 days apart → weekly
       let isWeekly=false;
       if(rawDates.length>=2){
         const d1=new Date(rawDates[0].y+"-"+rawDates[0].m+"-"+rawDates[0].d);
@@ -270,9 +275,27 @@ function parseFiles(){
       }
       const mcs=rawDates.map(r=>({col:r.col,mo:isWeekly?r.y+"-"+r.m+"-"+r.d:r.y+"-"+r.m}));
       const mos=[...new Set(mcs.map(m=>m.mo))],evts=[];
-      for(let r=2;r<cpvJ.length;r++){const nm=String(cpvJ[r][0]||"").trim();if(!nm||nm==="총합계")continue;
-        const md={};mcs.forEach(mc=>{const k=mc.mo;if(!md[k])md[k]=[0,0,0];md[k][0]+=Number(cpvJ[r][mc.col])||0;md[k][1]+=Number(cpvJ[r][mc.col+1])||0;md[k][2]+=Number(cpvJ[r][mc.col+4])||0;});
-        evts.push({n:nm,l:dlang(nm),m:md});}
+      // Parse events
+      let curCountry="KR";
+      for(let r=2;r<cpvJ.length;r++){
+        const col0=String(cpvJ[r][0]||"").trim();
+        if(col0==="총합계")continue;
+        // New format: col0 = country group header or empty
+        if(isNewFmt){
+          if(col0&&COUNTRY_MAP[col0])curCountry=COUNTRY_MAP[col0];
+          const nm=String(cpvJ[r][nameCol]||"").trim();
+          if(!nm||nm==="총계")continue;
+          const md={};mcs.forEach(mc=>{const k=mc.mo;if(!md[k])md[k]=[0,0,0];
+            md[k][0]+=Number(cpvJ[r][mc.col])||0;md[k][1]+=Number(cpvJ[r][mc.col+1])||0;md[k][2]+=Number(cpvJ[r][mc.col+4])||0;});
+          evts.push({n:nm,l:curCountry,m:md});
+        } else {
+          // Old format: col0 = event name
+          if(!col0)continue;
+          const md={};mcs.forEach(mc=>{const k=mc.mo;if(!md[k])md[k]=[0,0,0];
+            md[k][0]+=Number(cpvJ[r][mc.col])||0;md[k][1]+=Number(cpvJ[r][mc.col+1])||0;md[k][2]+=Number(cpvJ[r][mc.col+4])||0;});
+          evts.push({n:col0,l:dlang(col0),m:md});
+        }
+      }
       const cpcE={};
       if(cpcB){const cW=XLSX.read(cpcB,{type:"array"}),cS=cW.Sheets[cW.SheetNames[0]],cJ=XLSX.utils.sheet_to_json(cS);
         let curMo=null;cJ.forEach(row=>{const p=String(row['매출/SU 기간']||'');
@@ -284,7 +307,7 @@ function parseFiles(){
       if(tagB){const tW=XLSX.read(tagB,{type:"array"}),tS=tW.Sheets[tW.SheetNames[0]],tJ=XLSX.utils.sheet_to_json(tS);
         tagMap={};tJ.forEach(row=>{const kw=String(row['분석 단위']||'').trim();if(!kw)return;const td={};
           Object.keys(row).filter(k=>k!=='분석 단위').forEach(col=>{const cm=col.match(/(\d{4})\.\s*(\d+)/);if(cm)td[cm[1]+"-"+cm[2].padStart(2,"0")]=Number(row[col])||0;});tagMap[kw]=td;});}
-      res({hospital:S.hn||"병원",months:mos,events:evts,cpc:cpcE,tag:tagMap,mode:isWeekly?"weekly":"monthly"});
+      res({hospital:S.hn||"병원",months:mos,events:evts,cpc:cpcE,tag:tagMap,mode:isWeekly?"weekly":"monthly",hasExactCountry:isNewFmt});
     }).catch(rej);});
 }
 
@@ -505,13 +528,34 @@ function rDash(){
     <div class="CC"><h3>📊 이벤트별 CPC 성과 (${fM(lm)})</h3><div class="CH"><canvas id="cpcBar"></canvas></div></div>
     <div class="CC"><h3>📈 월별 CPC DB & 광고비 추이</h3><div class="CH"><canvas id="cpcTrend"></canvas></div></div></div>`;
     h+=`<div class="CC" style="margin-bottom:14px"><h3>⚡ 월별 CTR & 전환율 변화</h3><div style="height:180px"><canvas id="cpcEff"></canvas></div></div>`;
-    // Per-event tables
-    Object.entries(D.cpc).forEach(([name,evC])=>{
-      const lang=dlang(name),tr=autoTr(name);
-      h+=`<div class="CC" style="margin-bottom:8px"><h3>🔍 <span class="fl fl-${lang}">${FL[lang]||""} ${lang}</span> ${esc(name.slice(0,45))}${lang!=="KR"&&tr&&S.showTr?` <span style="font-size:10px;color:#6366f1">→ ${esc(tr)}</span>`:""}</h3><table class="MT"><thead><tr><th>월</th><th>클릭</th><th>CTR</th><th>CPC</th><th>광고비</th><th>DB</th>${S.showCPA?`<th>DB당비용</th>`:""}</tr></thead><tbody>`;
-      const cpcTblMs=ms.slice(-S.momMonths);
-      cpcTblMs.forEach(m=>{const x=evC[m];if(!x)return;const isL=m===lm;h+=`<tr><td${isL?' class="hl"':""}>${fM(m)}</td><td${isL?' class="hl"':""}>${fN(x[1])}</td><td${isL?' class="hl"':""}>${fP(x[2])}</td><td${isL?' class="hl"':""}>₩${fN(x[3])}</td><td${isL?' class="hl"':""}>₩${fN(x[4])}</td><td style="font-weight:700;color:#6366f1${isL?";background:#eef2ff":""}">${fN(x[5])}</td>${S.showCPA?`<td style="color:#0891b2;font-weight:700${isL?";background:#eef2ff":""}">₩${fN(x[5]>0?x[4]/x[5]:0)}</td>`:""}</tr>`;});
-      h+=`</tbody></table></div>`;});
+    // View toggle
+    h+=`<div class="cf"><button class="cb ${S.cpcView==="event"?"a":""}" onclick="SS({cpcView:'event'})">이벤트별</button><button class="cb ${S.cpcView==="month"?"a":""}" onclick="SS({cpcView:'month'})">월별</button></div>`;
+    const cpcTblMs=ms.slice(-S.momMonths);
+    if(S.cpcView==="event"){
+      // Per-event tables
+      Object.entries(D.cpc).forEach(([name,evC])=>{
+        const lang=dlang(name),tr=autoTr(name);
+        h+=`<div class="CC" style="margin-bottom:8px"><h3>🔍 <span class="fl fl-${lang}">${FL[lang]||""} ${lang}</span> ${esc(name.slice(0,45))}${lang!=="KR"&&tr&&S.showTr?` <span style="font-size:10px;color:#6366f1">→ ${esc(tr)}</span>`:""}</h3><table class="MT"><thead><tr><th>월</th><th>클릭</th><th>CTR</th><th>CPC</th><th>광고비</th><th>DB</th>${S.showCPA?`<th>DB당비용</th>`:""}</tr></thead><tbody>`;
+        cpcTblMs.forEach(m=>{const x=evC[m];if(!x)return;const isL=m===lm;h+=`<tr><td${isL?' class="hl"':""}>${fM(m)}</td><td${isL?' class="hl"':""}>${fN(x[1])}</td><td${isL?' class="hl"':""}>${fP(x[2])}</td><td${isL?' class="hl"':""}>₩${fN(x[3])}</td><td${isL?' class="hl"':""}>₩${fN(x[4])}</td><td style="font-weight:700;color:#6366f1${isL?";background:#eef2ff":""}">${fN(x[5])}</td>${S.showCPA?`<td style="color:#0891b2;font-weight:700${isL?";background:#eef2ff":""}">₩${fN(x[5]>0?x[4]/x[5]:0)}</td>`:""}</tr>`;});
+        h+=`</tbody></table></div>`;});
+    } else {
+      // Monthly view: each month shows all events
+      cpcTblMs.forEach(m=>{
+        const mTotal=cpcMT(m,"ALL");
+        const isL=m===lm;
+        h+=`<div class="CC" style="margin-bottom:8px${isL?";border:2px solid #6366f1":""}"><h3>📅 ${fM(m)} <span style="font-size:11px;color:#9ca3af;font-weight:400">클릭 ${fN(mTotal.cl)} · DB ${fN(mTotal.cn)} · 광고비 ₩${fN(mTotal.tc)}</span></h3>`;
+        h+=`<table class="MT"><thead><tr><th>이벤트</th><th>클릭</th><th>CTR</th><th>CPC</th><th>광고비</th><th>DB</th>${S.showCPA?`<th>DB당비용</th>`:""}</tr></thead><tbody>`;
+        // Sort events by DB desc for this month
+        const evRows=Object.entries(D.cpc).map(([name,evC])=>{const x=evC[m];return x?{name,x}:null;}).filter(Boolean).sort((a,b)=>b.x[5]-a.x[5]);
+        evRows.forEach(({name,x})=>{
+          const lang=dlang(name),tr=autoTr(name);
+          const label=lang!=="KR"&&tr&&S.showTr?`<span class="fl fl-${lang}">${FL[lang]||""}</span>${esc(name.slice(0,25))} <span style="font-size:9px;color:#6366f1">→${esc(tr.slice(0,12))}</span>`:`<span class="fl fl-${lang}">${FL[lang]||""}</span>${esc(name.slice(0,30))}`;
+          h+=`<tr><td style="font-family:'Noto Sans KR';font-size:10px">${label}</td><td>${fN(x[1])}</td><td>${fP(x[2])}</td><td>₩${fN(x[3])}</td><td>₩${fN(x[4])}</td><td style="font-weight:700;color:#6366f1">${fN(x[5])}</td>${S.showCPA?`<td style="color:#0891b2;font-weight:700">₩${fN(x[5]>0?x[4]/x[5]:0)}</td>`:""}</tr>`;});
+        // Total row
+        h+=`<tr style="border-top:2px solid #e5e7eb;font-weight:700"><td>합계</td><td>${fN(mTotal.cl)}</td><td></td><td></td><td>₩${fN(mTotal.tc)}</td><td style="color:#6366f1">${fN(mTotal.cn)}</td>${S.showCPA?`<td style="color:#0891b2">₩${fN(mTotal.cpa)}</td>`:""}</tr>`;
+        h+=`</tbody></table></div>`;
+      });
+    }
   }
 
   // ===== MOM TAB =====
