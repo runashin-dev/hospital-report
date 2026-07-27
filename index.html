@@ -719,9 +719,20 @@ function rCh(){
     const t5ms=ms.slice(-S.momMonths);
     const t5lbs=t5ms.map(fM);
     const allEvsSorted=D.events.filter(e=>coMatch(e.l)).map(e=>({...e,cur:evT(e,lm)})).filter(e=>e.cur.d>0).sort((a,b)=>b.cur.d-a.cur.d).slice(0,5);
+    // Find common prefix among top5 names to remove it
+    const names=allEvsSorted.map(e=>e.n);
+    let prefix="";if(names.length>1){for(let i=0;i<names[0].length;i++){const ch=names[0][i];if(names.every(n=>n[i]===ch))prefix+=ch;else break;}}
+    if(prefix.length<4)prefix=""; // only strip if meaningful prefix
+    // Strip common prefix and trailing separators
+    function smartLabel(name,tr){
+      if(S.showTr&&tr)return tr.slice(0,15);
+      let short=prefix?name.slice(prefix.length).replace(/^[\s,_·\-]+/,""):name;
+      if(!short)short=name; // fallback if entire name was prefix
+      return short.length>15?short.slice(0,15)+"…":short;
+    }
     const t5datasets=allEvsSorted.map((ev,i)=>{
       const isKR=ev.l==="KR",tr=isKR?"":autoTr(ev.n);
-      const label=S.showTr&&tr?tr.slice(0,12):ev.n.length>12?ev.n.slice(0,12)+"…":ev.n;
+      const label=smartLabel(ev.n,tr);
       return{label,data:t5ms.map(m=>evT(ev,m).d),backgroundColor:T5_COLORS[i]+"40",borderColor:T5_COLORS[i],borderWidth:1,borderRadius:4};
     });
     const t5dl={id:'t5dl',afterDatasetsDraw(chart){const ctx=chart.ctx;chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);meta.data.forEach((bar,i)=>{const v=ds.data[i];if(!v)return;ctx.save();ctx.font="bold 9px 'JetBrains Mono'";ctx.fillStyle=T5_COLORS[di];ctx.textAlign="center";ctx.fillText(v,bar.x,bar.y-4);ctx.restore();});});}};
