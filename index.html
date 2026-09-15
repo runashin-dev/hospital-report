@@ -298,11 +298,33 @@ function parseFiles(){
       }
       const cpcE={};
       if(cpcB){const cW=XLSX.read(cpcB,{type:"array"}),cS=cW.Sheets[cW.SheetNames[0]],cJ=XLSX.utils.sheet_to_json(cS);
-        let curMo=null;cJ.forEach(row=>{const p=String(row['매출/SU 기간']||'');
+        console.log('[CPC] columns:',cJ.length>0?Object.keys(cJ[0]):[]);
+        console.log('[CPC] first row:',cJ[0]);
+        let curMo=null,curEv=null,parsed=0;cJ.forEach(row=>{
+          // Handle both old and new column names
+          const p=String(row['매출/SU 기간']||'');
           if(isWeekly){const pm=p.match(/(\d{4})\.\s*(\d+)\.\s*(\d+)/);if(pm)curMo=pm[1]+"-"+pm[2].padStart(2,"0")+"-"+pm[3].padStart(2,"0");}
           else{const pm=p.match(/(\d{4})\.\s*(\d+)/);if(pm)curMo=pm[1]+"-"+pm[2].padStart(2,"0");}
-          const ev=String(row['이벤트 제목']||'').trim();if(!ev||ev==='총계'||!curMo)return;
-          if(!cpcE[ev])cpcE[ev]={};cpcE[ev][curMo]=[+row['광고 조회수']||0,+row['총 클릭수']||0,+row['광고 클릭률']||0,+row['CPC']||0,+row['총 광고비']||0,+row['전환수']||0,+row['전환가치']||0];});}
+          // Event name: carry forward for grouped format (NaN = same event)
+          const evRaw=String(row['이벤트 제목']||'').trim();
+          if(evRaw&&evRaw!=='nan'&&evRaw!=='총합계')curEv=evRaw;
+          if(!curEv||curEv==='총합계'||!curMo)return;
+          if(p==='총계')return;
+          // Read values with fallback for old/new column names
+          const views=+(row['광고 조회수new']||row['광고 조회수']||0);
+          const clicks=+(row['총 클릭수new']||row['총 클릭수']||0);
+          const ctr=+(row['광고 클릭률']||0);
+          const cpc=+(row['CPC']||0);
+          const cost=+(row['총 광고비new']||row['총 광고비']||0);
+          const conv=+(row['전환수new']||row['전환수']||0);
+          const convVal=+(row['전환가치new']||row['전환가치']||0);
+          if(!cpcE[curEv])cpcE[curEv]={};
+          if(!cpcE[curEv][curMo])cpcE[curEv][curMo]=[views,clicks,ctr,cpc,cost,conv,convVal];
+          else{const x=cpcE[curEv][curMo];x[0]+=views;x[1]+=clicks;x[4]+=cost;x[5]+=conv;x[6]+=convVal;}
+          parsed++;
+        });
+        console.log('[CPC] parsed rows:',parsed,'events:',Object.keys(cpcE).length,'months:',Object.keys(cpcE).length?Object.keys(Object.values(cpcE)[0]):[]);
+      }
       let tagMap=null;
       if(tagB){const tW=XLSX.read(tagB,{type:"array"}),tS=tW.Sheets[tW.SheetNames[0]],tJ=XLSX.utils.sheet_to_json(tS);
         tagMap={};tJ.forEach(row=>{const kw=String(row['분석 단위']||'').trim();if(!kw)return;const td={};
